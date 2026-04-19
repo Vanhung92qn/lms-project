@@ -1,0 +1,117 @@
+/* -------------------------------------------------------------------
+   Design tokens — IDENTICAL to docs/demo/bento.html. The demo file is
+   the source of truth; this file mirrors it for the Next.js app.
+   Any change here must be applied to bento.html too (and vice versa).
+   ------------------------------------------------------------------- */
+
+:root,
+[data-theme='light'] {
+  --bg-main: #f4f5f7;
+  --bg-panel: #ffffff;
+  --bg-header: #fafafa;
+  --bg-code: #f6f7f9;
+  --text-main: #1d1d1f;
+  --text-muted: #6e6e73;
+  --border-color: rgba(0, 0, 0, 0.06);
+  --accent: #0071e3;
+  --accent-hover: #0051a8;
+  --shadow-color: rgba(0, 0, 0, 0.08);
+  --code-keyword: #af52de;
+  --code-variable: #1d1d1f;
+  --code-string: #c33e29;
+  --code-comment: #8e8e93;
+}
+
+[data-theme='dark'] {
+  --bg-main: #0b0b0d;
+  --bg-panel: #151518;
+  --bg-header: #1b1b1f;
+  --bg-code: #0f0f11;
+  --text-main: #f5f5f7;
+  --text-muted: #8a8a90;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --accent: #0a84ff;
+  --accent-hover: #3a9cff;
+  --shadow-color: rgba(0, 0, 0, 0.55);
+  --code-keyword: #c678dd;
+  --code-variable: #e5e5e7;
+  --code-string: #98c379;
+  --code-comment: #6a6a70;
+}
+
+[data-theme='dracula'] {
+  --bg-main: #282a36;
+  --bg-panel: #31333f;
+  --bg-header: #363948;
+  --bg-code: #21222c;
+  --text-main: #f8f8f2;
+  --text-muted: #a9b1d6;
+  --border-color: rgba(248, 248, 242, 0.08);
+  --accent: #bd93f9;
+  --accent-hover: #9580d9;
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --code-keyword: #ff79c6;
+  --code-variable: #f8f8f2;
+  --code-string: #f1fa8c;
+  --code-comment: #6272a4;
+}
+
+[data-theme='one-dark'] {
+  --bg-main: #1e2127;
+  --bg-panel: #282c34;
+  --bg-header: #323841;
+  --bg-code: #21252b;
+  --text-main: #d7dae0;
+  --text-muted: #8a929c;
+  --border-color: rgba(215, 218, 224, 0.08);
+  --accent: #61afef;
+  --accent-hover: #528bce;
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --code-keyword: #c678dd;
+  --code-variable: #e06c75;
+  --code-string: #98c379;
+  --code-comment: #5c6370;
+}
+
+[data-theme='material'] {
+  --bg-main: #263238;
+  --bg-panel: #2e3b43;
+  --bg-header: #37474f;
+  --bg-code: #1e272c;
+  --text-main: #eeffff;
+  --text-muted: #b0bec5;
+  --border-color: rgba(238, 255, 255, 0.08);
+  --accent: #80cbc4;
+  --accent-hover: #4db6ac;
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --code-keyword: #c792ea;
+  --code-variable: #eeffff;
+  --code-string: #c3e88d;
+  --code-comment: #546e7a;
+}
+
+[data-theme='tokyo-night'] {
+  --bg-main: #1a1b26;
+  --bg-panel: #24283b;
+  --bg-header: #2a2e41;
+  --bg-code: #16161e;
+  --text-main: #c0caf5;
+  --text-muted: #7982a9;
+  --border-color: rgba(192, 202, 245, 0.08);
+  --accent: #7aa2f7;
+  --accent-hover: #5e82d9;
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --code-keyword: #bb9af7;
+  --code-variable: #c0caf5;
+  --code-string: #9ece6a;
+  --code-comment: #565f89;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

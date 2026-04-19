@@ -1,0 +1,60 @@
+{
+  "brand": {
+    "name": "khohoc.online",
+    "tagline": "Learn coding your way"
+  },
+  "nav": {
+    "home": "Home",
+    "courses": "Courses",
+    "dashboard": "Dashboard",
+    "login": "Sign in",
+    "register": "Sign up",
+    "logout": "Sign out"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "dracula": "Dracula",
+    "one-dark": "One Dark",
+    "material": "Material",
+    "tokyo-night": "Tokyo"
+  },
+  "home": {
+    "title": "Learn programming by doing, not by watching",
+    "subtitle": "Interactive text + code exercises with a 24/7 AI tutor and a knowledge graph tailored to you.",
+    "cta_primary": "Start for free",
+    "cta_secondary": "See design demo"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "no_account": "No account yet?",
+      "register_here": "Create one"
+    },
+    "register": {
+      "title": "Create your account",
+      "display_name": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "password_hint": "At least 10 characters with an uppercase letter and a number",
+      "submit": "Sign up",
+      "have_account": "Already have an account?",
+      "login_here": "Sign in"
+    },
+    "errors": {
+      "invalid_credentials": "Email or password is incorrect.",
+      "email_taken": "That email is already registered.",
+      "validation_failed": "Some fields aren't valid. Please review them.",
+      "rate_limited": "Too many requests. Try again shortly.",
+      "network": "Could not reach the server."
+    }
+  },
+  "dashboard": {
+    "welcome": "Hello, {name}",
+    "continue": "Continue learning"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "brand": {
+    "name": "khohoc.online",
+    "tagline": "Học lập trình theo cách của bạn"
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "courses": "Khoá học",
+    "dashboard": "Bảng điều khiển",
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "logout": "Đăng xuất"
+  },
+  "theme": {
+    "label": "Giao diện",
+    "light": "Light",
+    "dark": "Dark",
+    "dracula": "Dracula",
+    "one-dark": "One Dark",
+    "material": "Material",
+    "tokyo-night": "Tokyo"
+  },
+  "home": {
+    "title": "Học lập trình thực hành, không video",
+    "subtitle": "Sân chơi code tương tác với AI Tutor 24/7 và lộ trình cá nhân hoá tự động.",
+    "cta_primary": "Bắt đầu miễn phí",
+    "cta_secondary": "Xem demo giao diện"
+  },
+  "auth": {
+    "login": {
+      "title": "Đăng nhập",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "submit": "Đăng nhập",
+      "no_account": "Chưa có tài khoản?",
+      "register_here": "Đăng ký ngay"
+    },
+    "register": {
+      "title": "Tạo tài khoản",
+      "display_name": "Họ và tên",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "password_hint": "Ít nhất 10 ký tự, gồm chữ hoa và số",
+      "submit": "Đăng ký",
+      "have_account": "Đã có tài khoản?",
+      "login_here": "Đăng nhập"
+    },
+    "errors": {
+      "invalid_credentials": "Email hoặc mật khẩu không đúng.",
+      "email_taken": "Email đã được đăng ký.",
+      "validation_failed": "Thông tin chưa hợp lệ. Vui lòng kiểm tra lại.",
+      "rate_limited": "Bạn gửi quá nhanh. Thử lại sau ít giây.",
+      "network": "Không kết nối được máy chủ."
+    }
+  },
+  "dashboard": {
+    "welcome": "Chào {name}",
+    "continue": "Tiếp tục học"
+  }
+}
