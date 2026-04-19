@@ -49,6 +49,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+import type {
+  CourseDetail,
+  CourseSummary,
+  EnrollResponse,
+  PaginatedCourses,
+} from '@lms/shared-types';
+
+function authHeaders(token?: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const api = {
   register: (dto: RegisterRequest) =>
     request<AuthResponse>('/auth/register', {
@@ -60,4 +71,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
+
+  // Catalog
+  listCourses: (params?: { limit?: number; cursor?: string; locale?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.cursor) q.set('cursor', params.cursor);
+    if (params?.locale) q.set('locale', params.locale);
+    const qs = q.toString();
+    return request<PaginatedCourses>(`/courses${qs ? `?${qs}` : ''}`);
+  },
+  getCourse: (slug: string, token?: string | null) =>
+    request<CourseDetail>(`/courses/${slug}`, { headers: authHeaders(token) }),
+
+  // Enrollment
+  enroll: (slug: string, token: string) =>
+    request<EnrollResponse>('/enrollments', {
+      method: 'POST',
+      body: JSON.stringify({ course_slug: slug }),
+      headers: authHeaders(token),
+    }),
+  myEnrollments: (token: string) =>
+    request<CourseSummary[]>('/me/enrollments', { headers: authHeaders(token) }),
 };

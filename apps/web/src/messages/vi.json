@@ -68,6 +68,28 @@
   },
   "dashboard": {
     "welcome": "Chào {name}",
-    "continue": "Tiếp tục học"
+    "subtitle": "Chọn một khoá học để tiếp tục hoặc khám phá khoá mới.",
+    "continue": "Tiếp tục →",
+    "enrolled": "Khoá học của bạn",
+    "no_courses": "Bạn chưa đăng ký khoá học nào. Hãy duyệt catalog để bắt đầu.",
+    "load_failed": "Không tải được dữ liệu bảng điều khiển."
+  },
+  "catalog": {
+    "title": "Tất cả khoá học",
+    "subtitle": "Chọn một lộ trình để bắt đầu — mỗi bài học đều có sandbox code và AI Tutor hỗ trợ.",
+    "empty": "Chưa có khoá học nào.",
+    "fetch_failed": "Không tải được catalog. Vui lòng thử lại.",
+    "browse": "Duyệt catalog",
+    "curriculum": "Nội dung khoá học",
+    "lessons": "Bài học",
+    "locale": "Ngôn ngữ",
+    "minutes": "phút",
+    "free": "Miễn phí",
+    "paid": "Trả phí",
+    "enrolled": "✓ Đã đăng ký",
+    "enroll_now": "Đăng ký học ngay",
+    "login_to_enroll": "Đăng nhập để đăng ký",
+    "enroll_failed": "Đăng ký thất bại. Vui lòng thử lại.",
+    "go_dashboard": "Về bảng điều khiển"
   }
 }
