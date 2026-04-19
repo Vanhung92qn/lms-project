@@ -9,25 +9,20 @@ import { Link } from '@/lib/i18n/routing';
 export function AuthActions({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
   const t = useTranslations('nav');
   const glass = variant === 'glass';
+  // Both variants now use theme tokens. `glass` can be used later to swap
+  // register for a brand-locked dark gloss if we want the hero CTA echo.
+  void glass;
   return (
     <div className="flex items-center gap-2">
       <Link
         href="/login"
-        className={`rounded-pill px-4 py-2 text-sm font-medium transition-all ${
-          glass
-            ? 'text-slate-700/80 hover:text-slate-900'
-            : 'text-text-muted hover:text-text'
-        }`}
+        className="rounded-pill px-4 py-2 text-sm font-medium text-text-muted transition-all hover:text-text"
       >
         {t('login')}
       </Link>
       <Link
         href="/register"
-        className={`rounded-pill px-4 py-2 text-sm font-semibold transition-all ${
-          glass
-            ? 'border border-slate-900/10 bg-gradient-to-b from-[#2e2e2e] to-[#121212] text-white shadow-[inset_-4px_-6px_25px_0px_rgba(201,201,201,0.08),inset_4px_4px_10px_0px_rgba(29,29,29,0.24)] hover:scale-[1.02]'
-            : 'bg-accent text-panel hover:bg-accent-hover'
-        }`}
+        className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-panel transition-all hover:bg-accent-hover"
       >
         {t('register')}
       </Link>

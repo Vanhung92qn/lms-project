@@ -14,11 +14,13 @@ import { AuthActions } from './AuthActions';
  * but the bar spans edge to edge.
  */
 export function TopHeader({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
-  // Glass variant is used by the minimalist landing where a flipped video fades
-  // to white; dark text on a subtle white wash reads cleanly over both halves.
+  // Glass variant overlays the hero landing; reads the active theme's
+  // --bg-panel at 60 % opacity plus a strong backdrop blur so it looks
+  // "frosted" under every palette (light, dark, dracula, one-dark,
+  // material, tokyo-night) without any hard-coded colour.
   const outerClass =
     variant === 'glass'
-      ? 'absolute inset-x-0 top-0 z-20 border-b border-black/5 bg-white/30 backdrop-blur-xl'
+      ? 'absolute inset-x-0 top-0 z-20 border-b border-border bg-panel/60 backdrop-blur-xl'
       : 'sticky top-0 z-20 border-b border-border bg-panel/80 backdrop-blur-md';
 
   return (

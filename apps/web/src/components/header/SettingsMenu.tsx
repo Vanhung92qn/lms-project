@@ -58,10 +58,8 @@ export function SettingsMenu({ variant = 'solid' }: { variant?: 'solid' | 'glass
     setOpen(false);
   };
 
-  const triggerColor =
-    variant === 'glass'
-      ? 'text-slate-700/80 hover:text-slate-900'
-      : 'text-text-muted hover:text-text';
+  // Theme-aware across both variants — trigger pill always uses tokens.
+  const triggerColor = 'text-text-muted hover:text-text';
 
   return (
     <div ref={rootRef} className="relative">
@@ -70,10 +68,8 @@ export function SettingsMenu({ variant = 'solid' }: { variant?: 'solid' | 'glass
         aria-label={t('label')}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={`grid h-9 w-9 place-items-center rounded-pill border transition-all ${triggerColor} ${
-          variant === 'glass'
-            ? 'border-slate-900/10 bg-white/60 backdrop-blur-md'
-            : 'border-border bg-panel'
+        className={`grid h-9 w-9 place-items-center rounded-pill border border-border transition-all ${triggerColor} ${
+          variant === 'glass' ? 'bg-panel/70 backdrop-blur-md' : 'bg-panel'
         }`}
       >
         {/* gear icon — inline SVG avoids adding lucide-react just for one glyph */}

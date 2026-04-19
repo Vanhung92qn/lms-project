@@ -1,11 +1,19 @@
 'use client';
 
-// Minimalist, bento-aligned hero. Flipped CloudFront background video fades
-// to white via a two-stop gradient, leaving generous white space for a
-// typographic headline (Geist medium 80 px with an Instrument Serif italic
-// emphasis word at 100 px), a calm description, an email → CTA capture,
-// and a lightweight social-proof bar. Motion staggers the entrance so the
-// page feels intentional.
+// Minimalist hero — THEME-AWARE (Option A).
+//
+// Every surface colour reads from a CSS variable defined in
+// src/styles/tokens.css so the landing honours the six-theme switcher
+// living in the Settings menu. Three things stay hard-coded on purpose
+// and are "brand signature":
+//   - the CloudFront background video (content, not theme);
+//   - the dark gloss gradient on the primary CTA (readable on any bg);
+//   - the review stars and the avatar gradient pills (universal icons).
+//
+// The key mechanical shift from v1: the gradient-to-white overlay now
+// fades to `var(--bg-main)` instead of literal white, so the transition
+// between the video top and the page body stays seamless under every
+// palette (Dracula ⇒ fades to dracula; Tokyo Night ⇒ fades to navy; etc).
 
 import { motion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
@@ -16,8 +24,7 @@ import { TopHeader } from '@/components/header/TopHeader';
 const VIDEO_SRC =
   'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260302_085640_276ea93b-d7da-4418-a09b-2aa5b490e838.mp4';
 
-// Framer-motion v12 tightened the Variants type: `ease` wants a readonly
-// tuple (or a string keyword), not a plain number[]. `as const` does it.
+// Framer-motion v12 needs a readonly tuple for `ease`.
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const fadeSlideUp = {
@@ -37,8 +44,6 @@ export default function HomePage() {
 
   const submitEmail = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Forward the captured email to /register so the user doesn't have to
-    // retype it. Local-storage handoff stays client-only — no server writes.
     const data = new FormData(e.currentTarget);
     const email = (data.get('email') as string | null) ?? '';
     if (email) {
@@ -52,8 +57,8 @@ export default function HomePage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-white">
-      {/* Flipped background video */}
+    <div className="relative min-h-screen w-full overflow-hidden bg-main">
+      {/* Flipped background video (content, not theme). */}
       <video
         autoPlay
         loop
@@ -66,26 +71,30 @@ export default function HomePage() {
         <source src={VIDEO_SRC} type="video/mp4" />
       </video>
 
-      {/* White fade overlay — video bleeds through the top 26% of the viewport */}
+      {/* Theme-aware fade overlay — top 26% transparent, full theme bg by 66.9%. */}
       <div
-        className="absolute inset-0 z-[1] bg-gradient-to-b from-[26.416%] from-[rgba(255,255,255,0)] to-[66.943%] to-white"
+        className="absolute inset-0 z-[1] bg-gradient-to-b from-transparent from-[26.416%] to-[66.943%]"
+        style={{ ['--tw-gradient-to' as string]: 'var(--bg-main)' }}
         aria-hidden="true"
       />
 
-      {/* Glass header */}
       <TopHeader variant="glass" />
 
       <motion.main
         initial="hidden"
         animate="show"
         variants={stagger}
-        className="relative z-10 mx-auto flex min-h-screen max-w-[1200px] flex-col items-center px-6 pb-24 text-center"
-        style={{ paddingTop: 290, gap: 32, fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
+        className="relative z-10 mx-auto flex min-h-screen max-w-[1200px] flex-col items-center px-6 pb-24 text-center text-text"
+        style={{
+          paddingTop: 290,
+          gap: 32,
+          fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif",
+        }}
       >
-        {/* Headline */}
+        {/* Heading */}
         <motion.h1
           variants={fadeSlideUp}
-          className="font-medium tracking-[-0.04em] text-[#0a0a0a]"
+          className="font-medium tracking-[-0.04em] text-text"
           style={{
             fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif",
             fontSize: 'clamp(48px, 8vw, 80px)',
@@ -94,7 +103,7 @@ export default function HomePage() {
         >
           {t('h1_before')}{' '}
           <span
-            className="italic font-normal"
+            className="font-normal italic text-text-muted"
             style={{
               fontFamily: "'Instrument Serif', serif",
               fontSize: 'clamp(60px, 10vw, 100px)',
@@ -110,26 +119,21 @@ export default function HomePage() {
         {/* Description */}
         <motion.p
           variants={fadeSlideUp}
-          className="max-w-[554px] text-[18px] leading-[1.55]"
-          style={{
-            color: '#373a46',
-            opacity: 0.8,
-            fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif",
-          }}
+          className="max-w-[554px] text-[18px] leading-[1.55] text-text-muted opacity-80"
+          style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
         >
           {t('subtitle')}
         </motion.p>
 
-        {/* Email capture → CTA */}
+        {/* Email capture → CTA. Container reads from theme tokens, CTA stays
+            the brand-signature dark gloss so it pops on any palette. */}
         <motion.form
           variants={fadeSlideUp}
           onSubmit={submitEmail}
-          className="flex w-full max-w-[520px] items-center gap-2 p-2"
+          className="flex w-full max-w-[520px] items-center gap-2 border border-border bg-panel p-2"
           style={{
-            background: '#fcfcfc',
-            border: '1px solid rgba(0,0,0,0.06)',
             borderRadius: 40,
-            boxShadow: '0px 10px 40px 5px rgba(194,194,194,0.25)',
+            boxShadow: '0px 10px 40px 5px var(--shadow-color)',
           }}
         >
           <label htmlFor="hero-email" className="sr-only">
@@ -141,9 +145,9 @@ export default function HomePage() {
             type="email"
             required
             placeholder={t('email_placeholder')}
-            className="flex-1 rounded-full border-0 bg-transparent px-5 py-3 text-[15px] text-slate-800 outline-none placeholder:text-slate-400"
-            style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
             autoComplete="email"
+            className="flex-1 rounded-full border-0 bg-transparent px-5 py-3 text-[15px] text-text outline-none placeholder:text-text-muted"
+            style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
           />
           <button
             type="submit"
@@ -157,30 +161,30 @@ export default function HomePage() {
         {/* Social proof */}
         <motion.div
           variants={fadeSlideUp}
-          className="flex flex-wrap items-center justify-center gap-3 text-[14px] text-slate-700"
+          className="flex flex-wrap items-center justify-center gap-3 text-[14px] text-text-muted"
           style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
         >
           <div className="flex -space-x-2" aria-hidden="true">
-            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-amber-300 to-amber-500" />
-            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-rose-300 to-rose-500" />
-            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-violet-300 to-violet-500" />
-            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
-            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-sky-300 to-sky-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-[color:var(--bg-panel)] bg-gradient-to-br from-amber-300 to-amber-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-[color:var(--bg-panel)] bg-gradient-to-br from-rose-300 to-rose-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-[color:var(--bg-panel)] bg-gradient-to-br from-violet-300 to-violet-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-[color:var(--bg-panel)] bg-gradient-to-br from-emerald-300 to-emerald-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-[color:var(--bg-panel)] bg-gradient-to-br from-sky-300 to-sky-500" />
           </div>
           <StarRow />
           <span>
-            <strong className="text-slate-900">1,020+</strong>{' '}
-            <span className="text-slate-500">{t('reviews')}</span>
+            <strong className="text-text">1,020+</strong>{' '}
+            <span className="text-text-muted">{t('reviews')}</span>
           </span>
-          <span className="text-slate-300" aria-hidden="true">
+          <span className="text-border" aria-hidden="true">
             ·
           </span>
           <a
-            href={`/bento.html`}
+            href="/bento.html"
             hrefLang={locale}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-4 transition-colors hover:text-slate-900"
+            className="underline underline-offset-4 transition-colors hover:text-text"
           >
             {t('cta_secondary')}
           </a>
@@ -191,6 +195,7 @@ export default function HomePage() {
 }
 
 function StarRow() {
+  // Gold stars are iconic for review ratings — brand-signature, not theme-driven.
   return (
     <div className="flex items-center gap-0.5" aria-label="5 stars">
       {Array.from({ length: 5 }).map((_, i) => (

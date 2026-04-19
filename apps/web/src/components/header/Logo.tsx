@@ -5,8 +5,9 @@ import { Link } from '@/lib/i18n/routing';
  * mark, echoing the hero design. Kept compact; no tagline here (that lives
  * on the landing page).
  */
-export function Logo({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
-  const colorClass = variant === 'glass' ? 'text-[#0a0a0a]' : 'text-text';
+export function Logo({ variant: _variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
+  // Theme-aware: the logo always reads from the active palette's --text-main.
+  const colorClass = 'text-text';
   return (
     <Link
       href="/"
