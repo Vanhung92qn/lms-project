@@ -213,7 +213,8 @@ export class AuthService {
       {
         secret: this.config.get<string>('app.jwt.refreshSecret'),
         expiresIn: refreshTtl,
-        jwtid: refreshJti,
+        // jti already lives in refreshPayload; do NOT also pass options.jwtid
+        // or jsonwebtoken throws "Bad options.jwtid: payload already has jti".
       },
     );
 

@@ -13,11 +13,14 @@
 name: lms-dev
 
 networks:
+  # In dev we intentionally run both networks WITHOUT `internal: true` so that
+  # host-side tooling (prisma migrate, psql, redis-cli) can reach the ports
+  # we publish. The production compose restores strict isolation — see
+  # infra/docker-compose.prod.yml when it lands.
   lms-edge:
     name: lms-edge
   lms-data:
     name: lms-data
-    internal: true
 
 volumes:
   pgdata:
@@ -30,22 +33,32 @@ services:
     container_name: lms-traefik
     restart: unless-stopped
     command:
-      - --api.dashboard=true
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.exposedByDefault=false
-      - --entrypoints.web.address=:80
-      - --log.level=INFO
-      - --accesslog=true
+      - --configFile=/etc/traefik/traefik.yml
     ports:
       - "80:80"
-      - "8081:8080" # Traefik dashboard — localhost only, dev only
+      - "443:443"
+      - "127.0.0.1:8081:8080" # dashboard — localhost only
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      # Cloudflare Origin cert + key mounted from /opt/lms/secrets on host.
+      # These are 600 on host and NEVER committed to git.
+      - /opt/lms/secrets/cloudflare-origin.pem:/etc/traefik/certs/cloudflare-origin.pem:ro
+      - /opt/lms/secrets/cloudflare-origin.key:/etc/traefik/certs/cloudflare-origin.key:ro
+    # host-gateway lets the file-provider routers reach native node processes
+    # on the host (api-core :4000, web :3000) while they are not yet
+    # containerised.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks: [lms-edge]
 
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 is the upstream Postgres 16 image with the
+    # `vector` extension preinstalled. Identical to postgres:16 otherwise.
+    # Switch back to postgres:16-alpine only if we remove pgvector from
+    # prisma/schema.prisma.
+    image: pgvector/pgvector:pg16
     container_name: lms-postgres
     restart: unless-stopped
     environment:

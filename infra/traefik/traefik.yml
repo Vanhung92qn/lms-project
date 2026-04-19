@@ -1,0 +1,38 @@
+# Traefik v3 static configuration (dev + prod).
+# Dynamic rules (TLS, routers, middlewares) live in ./dynamic/*.yml and are
+# loaded via the file provider below — Traefik hot-reloads them.
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+accessLog:
+  bufferingSize: 100
+
+api:
+  dashboard: true
+  insecure: true        # dev only — guard in prod via IP allow + basic auth
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  # File provider only. The docker provider stays OFF because api-core and
+  # web run as native node processes on the host (not in Docker yet). When
+  # they are containerised, enable docker: and move per-service labels onto
+  # the compose services.
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true

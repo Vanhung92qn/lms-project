@@ -47,7 +47,7 @@ export default async function HomePage({
             {tHome('cta_primary')}
           </Link>
           <a
-            href="/docs/demo/bento.html"
+            href="/bento.html"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary"
