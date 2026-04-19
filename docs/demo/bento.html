@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI-LMS · Bento Design System</title>
+<meta name="description"
+      content="Living style reference for the AI-LMS UI: Bento grid, six themes, Outfit + Fira Code, strict CSS-variable tokens." />
+
+<!--
+  FOUC guard — runs before <body> renders so a theme saved in a previous
+  session never flashes the default palette on reload.
+-->
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem('lms-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    } catch (e) { /* localStorage disabled — default theme stays */ }
+  })();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" />
+
+<style>
+/* -------------------------------------------------------------------
+   Core tokens — every color, shadow and border in this file reads from
+   one of the variables below. No hex literals in component CSS.
+   ------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  --bg-main:       #f4f5f7;
+  --bg-panel:      #ffffff;
+  --bg-header:     #fafafa;
+  --bg-code:       #f6f7f9;
+  --text-main:     #1d1d1f;
+  --text-muted:    #6e6e73;
+  --border-color:  rgba(0, 0, 0, 0.06);
+  --accent:        #0071e3;
+  --accent-hover:  #0051a8;
+  --shadow-color:  rgba(0, 0, 0, 0.08);
+  --code-keyword:  #af52de;
+  --code-variable: #1d1d1f;
+  --code-string:   #c33e29;
+  --code-comment:  #8e8e93;
+}
+
+[data-theme="dark"] {
+  --bg-main:       #0b0b0d;
+  --bg-panel:      #151518;
+  --bg-header:     #1b1b1f;
+  --bg-code:       #0f0f11;
+  --text-main:     #f5f5f7;
+  --text-muted:    #8a8a90;
+  --border-color:  rgba(255, 255, 255, 0.08);
+  --accent:        #0a84ff;
+  --accent-hover:  #3a9cff;
+  --shadow-color:  rgba(0, 0, 0, 0.55);
+  --code-keyword:  #c678dd;
+  --code-variable: #e5e5e7;
+  --code-string:   #98c379;
+  --code-comment:  #6a6a70;
+}
+
+[data-theme="dracula"] {
+  --bg-main:       #282a36;
+  --bg-panel:      #31333f;
+  --bg-header:     #363948;
+  --bg-code:       #21222c;
+  --text-main:     #f8f8f2;
+  --text-muted:    #a9b1d6;
+  --border-color:  rgba(248, 248, 242, 0.08);
+  --accent:        #bd93f9;
+  --accent-hover:  #9580d9;
+  --shadow-color:  rgba(0, 0, 0, 0.45);
+  --code-keyword:  #ff79c6;
+  --code-variable: #f8f8f2;
+  --code-string:   #f1fa8c;
+  --code-comment:  #6272a4;
+}
+
+[data-theme="one-dark"] {
+  --bg-main:       #1e2127;
+  --bg-panel:      #282c34;
+  --bg-header:     #323841;
+  --bg-code:       #21252b;
+  --text-main:     #d7dae0;
+  --text-muted:    #8a929c;
+  --border-color:  rgba(215, 218, 224, 0.08);
+  --accent:        #61afef;
+  --accent-hover:  #528bce;
+  --shadow-color:  rgba(0, 0, 0, 0.45);
+  --code-keyword:  #c678dd;
+  --code-variable: #e06c75;
+  --code-string:   #98c379;
+  --code-comment:  #5c6370;
+}
+
+[data-theme="material"] {
+  --bg-main:       #263238;
+  --bg-panel:      #2e3b43;
+  --bg-header:     #37474f;
+  --bg-code:       #1e272c;
+  --text-main:     #eeffff;
+  --text-muted:    #b0bec5;
+  --border-color:  rgba(238, 255, 255, 0.08);
+  --accent:        #80cbc4;
+  --accent-hover:  #4db6ac;
+  --shadow-color:  rgba(0, 0, 0, 0.45);
+  --code-keyword:  #c792ea;
+  --code-variable: #eeffff;
+  --code-string:   #c3e88d;
+  --code-comment:  #546e7a;
+}
+
+[data-theme="tokyo-night"] {
+  --bg-main:       #1a1b26;
+  --bg-panel:      #24283b;
+  --bg-header:     #2a2e41;
+  --bg-code:       #16161e;
+  --text-main:     #c0caf5;
+  --text-muted:    #7982a9;
+  --border-color:  rgba(192, 202, 245, 0.08);
+  --accent:        #7aa2f7;
+  --accent-hover:  #5e82d9;
+  --shadow-color:  rgba(0, 0, 0, 0.5);
+  --code-keyword:  #bb9af7;
+  --code-variable: #c0caf5;
+  --code-string:   #9ece6a;
+  --code-comment:  #565f89;
+}
+
+/* -------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: "Outfit", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.55;
+  transition: background 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 { margin: 0; color: var(--text-main); font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: 32px; font-weight: 700; }
+h2 { font-size: 20px; }
+p  { margin: 0; color: var(--text-muted); }
+
+code, pre {
+  font-family: "Fira Code", "SF Mono", Menlo, Consolas, monospace;
+  font-feature-settings: "liga" 1, "calt" 1;
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Scrollbars — unobtrusive, themed */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 99px;
+  transition: background 0.3s ease;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* -------------------------------------------------------------------
+   App shell
+   ------------------------------------------------------------------- */
+.shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  width: 40px; height: 40px;
+  border-radius: 16px;
+  background: var(--accent);
+  display: grid; place-items: center;
+  color: var(--bg-panel);
+  font-weight: 700;
+  font-size: 18px;
+  box-shadow: 0 8px 24px -8px var(--shadow-color);
+  transition: all 0.3s ease;
+}
+.brand-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+.brand-meta { color: var(--text-muted); font-size: 13px; margin-top: -2px; }
+
+/* Theme picker — segmented control */
+.theme-picker {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 99px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 16px -4px var(--shadow-color);
+  transition: all 0.3s ease;
+  flex-wrap: wrap;
+}
+.theme-picker button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.theme-picker button:hover { color: var(--text-main); }
+.theme-picker button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg-panel);
+}
+
+/* -------------------------------------------------------------------
+   Bento grid
+   ------------------------------------------------------------------- */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: minmax(140px, auto);
+  gap: 24px;
+}
+
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 12px 32px -20px var(--shadow-color);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+.card:hover {
+  box-shadow: 0 16px 40px -16px var(--shadow-color);
+  transform: translateY(-1px);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Span helpers */
+.span-7 { grid-column: span 7; }
+.span-5 { grid-column: span 5; }
+.span-8 { grid-column: span 8; }
+.span-4 { grid-column: span 4; }
+.span-6 { grid-column: span 6; }
+.span-3 { grid-column: span 3; }
+.row-2  { grid-row: span 2; }
+
+/* -------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------- */
+.btn {
+  appearance: none;
+  border: none;
+  background: var(--accent);
+  color: var(--bg-panel);
+  padding: 14px 28px;
+  border-radius: 99px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px -8px var(--shadow-color);
+}
+.btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -8px var(--shadow-color);
+}
+.btn.secondary {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+.btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn.small { padding: 8px 16px; font-size: 13px; }
+
+.cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* -------------------------------------------------------------------
+   Card — hero welcome
+   ------------------------------------------------------------------- */
+.hero {
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-header) 100%);
+  justify-content: space-between;
+}
+.hero h1 { font-size: 34px; }
+.hero .hero-sub { font-size: 16px; max-width: 44ch; }
+.hero strong { color: var(--text-main); }
+
+/* -------------------------------------------------------------------
+   Card — progress ring + chips
+   ------------------------------------------------------------------- */
+.progress { align-items: center; }
+.ring {
+  width: 180px; height: 180px;
+  border-radius: 99px;
+  background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--bg-code) 0);
+  display: grid; place-items: center;
+  position: relative;
+  transition: all 0.3s ease;
+}
+.ring::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  background: var(--bg-panel);
+  border-radius: 99px;
+  transition: all 0.3s ease;
+}
+.ring-label {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.ring-label .value { font-size: 34px; font-weight: 700; }
+.ring-label .unit  { font-size: 13px; color: var(--text-muted); }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+.chip {
+  background: var(--bg-code);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: all 0.3s ease;
+}
+.chip .k { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.chip .v { font-size: 18px; font-weight: 600; }
+
+.badge {
+  background: var(--bg-code);
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  color: var(--text-muted);
+}
+
+/* -------------------------------------------------------------------
+   Card — code editor preview
+   ------------------------------------------------------------------- */
+.editor {
+  background: var(--bg-code);
+  border-radius: 16px;
+  padding: 20px;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  font-family: "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.editor .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.editor .tab {
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: "Outfit", sans-serif;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+.editor .tab.active { color: var(--text-main); border: 1px solid var(--border-color); }
+
+.editor pre { margin: 0; color: var(--text-main); white-space: pre; overflow: auto; }
+.editor .kw  { color: var(--code-keyword); font-weight: 500; }
+.editor .id  { color: var(--code-variable); }
+.editor .str { color: var(--code-string); }
+.editor .cm  { color: var(--code-comment); font-style: italic; }
+.editor .ln  { color: var(--code-comment); user-select: none; padding-right: 18px; }
+
+/* -------------------------------------------------------------------
+   Card — AI Tutor chat
+   ------------------------------------------------------------------- */
+.tutor { justify-content: space-between; }
+.messages { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.msg {
+  padding: 12px 16px;
+  border-radius: 16px;
+  max-width: 88%;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+}
+.msg.ai {
+  background: var(--bg-code);
+  color: var(--text-main);
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+}
+.msg.ai code { background: var(--bg-header); padding: 1px 6px; border-radius: 6px; font-size: 12px; }
+.msg.me {
+  background: var(--accent);
+  color: var(--bg-panel);
+  border-bottom-right-radius: 4px;
+  align-self: flex-end;
+}
+.compose {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: var(--bg-code);
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  transition: all 0.3s ease;
+}
+.compose:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.compose input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 14px;
+}
+.compose input::placeholder { color: var(--text-muted); }
+.compose button {
+  appearance: none;
+  background: var(--accent);
+  color: var(--bg-panel);
+  border: none;
+  border-radius: 99px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.compose button:hover { background: var(--accent-hover); }
+
+/* -------------------------------------------------------------------
+   Card — upcoming lessons
+   ------------------------------------------------------------------- */
+.lesson-list { display: flex; flex-direction: column; gap: 10px; }
+.lesson {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-code);
+  border-radius: 16px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.lesson:hover { border-color: var(--border-color); transform: translateX(2px); }
+.lesson .dot {
+  width: 10px; height: 10px; border-radius: 99px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.lesson .meta { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.lesson .title { font-weight: 500; font-size: 14px; color: var(--text-main); }
+.lesson .sub   { font-size: 12px; color: var(--text-muted); }
+.lesson .time  { font-family: "Fira Code", monospace; font-size: 12px; color: var(--text-muted); }
+
+/* -------------------------------------------------------------------
+   Card — single-stat blocks (streak, community)
+   ------------------------------------------------------------------- */
+.single-stat { align-items: flex-start; justify-content: space-between; }
+.single-stat .big {
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.single-stat .sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+.spark {
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 44px; width: 100%;
+}
+.spark span {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+.spark span:nth-last-child(-n+3) { opacity: 1; }
+
+/* -------------------------------------------------------------------
+   Card — terminal output
+   ------------------------------------------------------------------- */
+.terminal {
+  background: var(--bg-code);
+  border-radius: 16px;
+  padding: 20px;
+  flex: 1;
+  font-family: "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-main);
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.terminal .ok     { color: var(--code-string); }
+.terminal .err    { color: #ff6b6b; }   /* exception: verdict red, visible on every theme */
+.terminal .dim    { color: var(--code-comment); }
+.terminal .prompt { color: var(--accent); }
+
+/* -------------------------------------------------------------------
+   Card — knowledge graph preview (SVG)
+   ------------------------------------------------------------------- */
+.graph { position: relative; flex: 1; min-height: 200px; }
+.graph svg { width: 100%; height: 100%; display: block; }
+.graph text {
+  font-family: "Outfit", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--text-main);
+}
+.graph .edge { stroke: var(--border-color); stroke-width: 1.5; }
+.graph .node {
+  fill: var(--bg-code);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  transition: all 0.3s ease;
+}
+.graph .node.master { fill: var(--accent); stroke: var(--accent); }
+.graph .node:hover { stroke-width: 2.5; }
+
+/* -------------------------------------------------------------------
+   Footer
+   ------------------------------------------------------------------- */
+footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+footer code {
+  background: var(--bg-code);
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+/* -------------------------------------------------------------------
+   Responsive collapse
+   ------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  .bento { grid-template-columns: repeat(6, 1fr); }
+  .span-7, .span-8, .span-5, .span-4, .span-6 { grid-column: span 6; }
+  .span-3 { grid-column: span 3; }
+}
+@media (max-width: 720px) {
+  .shell { padding: 20px; }
+  .bento { grid-template-columns: 1fr; }
+  .span-7, .span-8, .span-5, .span-4, .span-6, .span-3 { grid-column: span 1; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+  h1 { font-size: 26px; }
+}
+
+/* Respect users who asked the OS to calm motion down */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">K</div>
+      <div>
+        <div class="brand-name">khohoc.online</div>
+        <div class="brand-meta">Design system · Bento reference</div>
+      </div>
+    </div>
+
+    <div class="theme-picker" role="group" aria-label="Chọn theme giao diện">
+      <button type="button" data-theme-btn="light"       aria-pressed="true">Light</button>
+      <button type="button" data-theme-btn="dark"        aria-pressed="false">Dark</button>
+      <button type="button" data-theme-btn="dracula"     aria-pressed="false">Dracula</button>
+      <button type="button" data-theme-btn="one-dark"    aria-pressed="false">One Dark</button>
+      <button type="button" data-theme-btn="material"    aria-pressed="false">Material</button>
+      <button type="button" data-theme-btn="tokyo-night" aria-pressed="false">Tokyo</button>
+    </div>
+  </header>
+
+  <main class="bento">
+
+    <!-- 1. Hero welcome -->
+    <section class="card hero span-7 row-2" aria-labelledby="hero-title">
+      <div>
+        <div class="eyebrow">Chào buổi sáng</div>
+        <h1 id="hero-title">Hôm nay bạn sẽ viết gì?</h1>
+        <p class="hero-sub">
+          Đang dở bài <strong>Phân tích địa chỉ IPv4</strong> trong khoá
+          <em>C++ từ căn bản đến nâng cao</em>. Còn 1 test-case cuối chưa pass —
+          AI Tutor sẵn sàng giải thích ngay khi bạn mở bài.
+        </p>
+      </div>
+      <div class="cta-row">
+        <button class="btn" type="button">Tiếp tục học →</button>
+        <button class="btn secondary" type="button">Xem lộ trình cá nhân</button>
+      </div>
+    </section>
+
+    <!-- 2. Progress ring -->
+    <section class="card progress span-5 row-2" aria-label="Tiến độ tuần này">
+      <div class="card-head" style="width:100%">
+        <span class="eyebrow">Tuần này</span>
+        <span class="badge">7 / 14 ngày</span>
+      </div>
+      <div class="ring" style="--pct:68" role="img" aria-label="68% hoàn thành">
+        <div class="ring-label">
+          <div class="value">68%</div>
+          <div class="unit">7 / 10 bài</div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="chip"><span class="k">Thời lượng</span><span class="v">4h 12m</span></div>
+        <div class="chip"><span class="k">Submit</span><span class="v">23 AC</span></div>
+      </div>
+    </section>
+
+    <!-- 3. Code editor preview -->
+    <section class="card span-8 row-2" aria-label="Monaco editor preview">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">Bài tập đang làm</div>
+          <h2>Phân tích địa chỉ IPv4</h2>
+        </div>
+        <button class="btn small" type="button">Run ▶</button>
+      </div>
+      <div class="editor">
+        <div class="tabs">
+          <div class="tab active">main.cpp</div>
+          <div class="tab">test_cases.txt</div>
+          <div class="tab">README.md</div>
+        </div>
+<pre><span class="ln"> 1</span> <span class="cm">// parse a dotted-quad IPv4 string into 4 octets</span>
+<span class="ln"> 2</span> <span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span>
+<span class="ln"> 3</span> <span class="kw">#include</span> <span class="str">&lt;sstream&gt;</span>
+<span class="ln"> 4</span>
+<span class="ln"> 5</span> <span class="kw">int</span> <span class="id">main</span>() {
+<span class="ln"> 6</span>     <span class="kw">std::string</span> <span class="id">ip</span>; <span class="kw">std::cin</span> &gt;&gt; <span class="id">ip</span>;
+<span class="ln"> 7</span>     <span class="kw">std::stringstream</span> <span class="id">ss</span>(<span class="id">ip</span>);
+<span class="ln"> 8</span>     <span class="kw">int</span> <span class="id">a</span>, <span class="id">b</span>, <span class="id">c</span>, <span class="id">d</span>; <span class="kw">char</span> <span class="id">dot</span>;
+<span class="ln"> 9</span>     <span class="id">ss</span> &gt;&gt; <span class="id">a</span> &gt;&gt; <span class="id">dot</span> &gt;&gt; <span class="id">b</span> &gt;&gt; <span class="id">dot</span> &gt;&gt; <span class="id">c</span> &gt;&gt; <span class="id">dot</span> &gt;&gt; <span class="id">d</span>;
+<span class="ln">10</span>     <span class="kw">std::cout</span> &lt;&lt; <span class="id">a</span> &lt;&lt; <span class="str">" "</span> &lt;&lt; <span class="id">b</span> &lt;&lt; <span class="str">" "</span> &lt;&lt; <span class="id">c</span> &lt;&lt; <span class="str">" "</span> &lt;&lt; <span class="id">d</span>;
+<span class="ln">11</span>     <span class="kw">return</span> 0;
+<span class="ln">12</span> }</pre>
+      </div>
+    </section>
+
+    <!-- 4. AI Tutor chat -->
+    <section class="card tutor span-4 row-2" aria-label="AI Tutor Llama 3 8B">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">AI Tutor · Llama 3 8B</div>
+          <h2>Trợ giảng</h2>
+        </div>
+        <span class="badge">● online</span>
+      </div>
+      <div class="messages">
+        <div class="msg ai">Mình thấy test-case 5 báo <code>WA</code>. Bạn có muốn mình gợi ý không?</div>
+        <div class="msg me">Có, giúp mình với!</div>
+        <div class="msg ai">Thử với input <code>1.2.3</code> (thiếu 1 octet). Code hiện tại không kiểm tra khi <code>ss</code> đọc thất bại — thêm <code>if (ss.fail())</code> trước khi in nhé.</div>
+      </div>
+      <form class="compose" onsubmit="event.preventDefault()">
+        <input type="text" placeholder="Hỏi AI Tutor…" aria-label="Tin nhắn AI" />
+        <button type="submit">Gửi</button>
+      </form>
+    </section>
+
+    <!-- 5. Upcoming lessons -->
+    <section class="card span-6" aria-label="Bài học sắp tới">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">Sắp tới</div>
+          <h2>Bài học kế tiếp</h2>
+        </div>
+        <button class="btn secondary small" type="button">Xem tất cả</button>
+      </div>
+      <div class="lesson-list">
+        <div class="lesson">
+          <span class="dot"></span>
+          <div class="meta"><span class="title">Con trỏ &amp; quản lý bộ nhớ</span><span class="sub">C++ · Module 4 · Bài 2</span></div>
+          <span class="time">18 phút</span>
+        </div>
+        <div class="lesson">
+          <span class="dot"></span>
+          <div class="meta"><span class="title">Đệ quy — cây &amp; đồ thị</span><span class="sub">C++ · Module 4 · Bài 3</span></div>
+          <span class="time">24 phút</span>
+        </div>
+        <div class="lesson">
+          <span class="dot"></span>
+          <div class="meta"><span class="title">STL — container &amp; iterator</span><span class="sub">C++ · Module 5 · Bài 1</span></div>
+          <span class="time">32 phút</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Terminal output -->
+    <section class="card span-6" aria-label="Kết quả biên dịch">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">Sandbox · runner-cpp</div>
+          <h2>Terminal</h2>
+        </div>
+        <span class="eyebrow">runtime 142ms · mem 1.1MB</span>
+      </div>
+      <div class="terminal"><span class="prompt">$</span> g++ -std=c++20 main.cpp -o main
+<span class="dim">→ compile ok</span>
+<span class="prompt">$</span> ./main &lt; tc-01.in
+<span class="ok">1 2 3 4   [AC]  3ms</span>
+<span class="prompt">$</span> ./main &lt; tc-05.in
+<span class="err">(empty)   [WA]  2ms</span>
+<span class="dim">expected:</span> 192 168 1 10
+<span class="dim">got:     </span> 192 168 1 0
+<span class="prompt">$</span> <span style="opacity:.7">■</span></div>
+    </section>
+
+    <!-- 7. Streak -->
+    <section class="card single-stat span-3" aria-label="Chuỗi ngày học">
+      <div>
+        <div class="eyebrow">Streak</div>
+        <div class="big">14</div>
+        <div class="sub">ngày liên tiếp — giữ vững!</div>
+      </div>
+      <div class="spark" aria-hidden="true">
+        <span style="height:30%"></span><span style="height:55%"></span><span style="height:40%"></span>
+        <span style="height:70%"></span><span style="height:50%"></span><span style="height:85%"></span>
+        <span style="height:62%"></span><span style="height:78%"></span><span style="height:100%"></span>
+      </div>
+    </section>
+
+    <!-- 8. Community -->
+    <section class="card single-stat span-3" aria-label="Bạn học">
+      <div>
+        <div class="eyebrow">Cùng học</div>
+        <div class="big">128</div>
+        <div class="sub">bạn đang code bài này</div>
+      </div>
+      <button class="btn secondary small" type="button">Xem leaderboard</button>
+    </section>
+
+    <!-- 9. Knowledge graph -->
+    <section class="card span-6" aria-label="Knowledge graph">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">Sơ đồ tri thức</div>
+          <h2>Kỹ năng đang lên</h2>
+        </div>
+        <span class="eyebrow">C++ · tuần 6</span>
+      </div>
+      <div class="graph">
+        <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <!-- edges -->
+          <line class="edge" x1="80"  y1="100" x2="180" y2="60"  />
+          <line class="edge" x1="80"  y1="100" x2="180" y2="140" />
+          <line class="edge" x1="180" y1="60"  x2="300" y2="50"  />
+          <line class="edge" x1="180" y1="140" x2="300" y2="150" />
+          <line class="edge" x1="300" y1="50"  x2="360" y2="100" />
+          <line class="edge" x1="300" y1="150" x2="360" y2="100" />
+          <!-- nodes -->
+          <circle class="node master" cx="80"  cy="100" r="22" />
+          <circle class="node master" cx="180" cy="60"  r="18" />
+          <circle class="node"        cx="180" cy="140" r="18" />
+          <circle class="node"        cx="300" cy="50"  r="18" />
+          <circle class="node"        cx="300" cy="150" r="18" />
+          <circle class="node"        cx="360" cy="100" r="16" />
+          <!-- labels -->
+          <text x="80"  y="142" text-anchor="middle">Pointer</text>
+          <text x="180" y="38"  text-anchor="middle">Array</text>
+          <text x="180" y="178" text-anchor="middle">String</text>
+          <text x="300" y="32"  text-anchor="middle">Recursion</text>
+          <text x="300" y="182" text-anchor="middle">STL</text>
+          <text x="360" y="136" text-anchor="middle">Graph</text>
+        </svg>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <span>Design tokens live in <code>docs/architecture/design-system.md</code>.</span>
+    <span>Theme persists via <code>localStorage['lms-theme']</code> — no FOUC.</span>
+  </footer>
+</div>
+
+<script>
+  /* -------------------------------------------------------------------
+     Theme picker — updates <html data-theme>, persists in localStorage.
+     No dependency on any framework. In Next.js this same logic lives in
+     a small ThemeProvider component.
+     ------------------------------------------------------------------- */
+  (function () {
+    var KEY = 'lms-theme';
+    var buttons = document.querySelectorAll('[data-theme-btn]');
+
+    function applyTheme(name) {
+      document.documentElement.setAttribute('data-theme', name);
+      try { localStorage.setItem(KEY, name); } catch (e) { /* ignore */ }
+      buttons.forEach(function (b) {
+        b.setAttribute(
+          'aria-pressed',
+          b.getAttribute('data-theme-btn') === name ? 'true' : 'false'
+        );
+      });
+    }
+
+    // Reflect whatever the FOUC guard resolved (or the default).
+    var current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(current);
+
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        applyTheme(b.getAttribute('data-theme-btn'));
+      });
+    });
+  })();
+</script>
+</body>
+</html>
