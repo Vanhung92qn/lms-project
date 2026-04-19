@@ -27,12 +27,13 @@ export function NavItems({ variant = 'solid' }: { variant?: 'solid' | 'glass' })
     { key: 'forum',     href: null },
   ];
 
-  const baseColor =
-    variant === 'glass'
-      ? 'text-slate-700/80 hover:text-slate-900'
-      : 'text-text-muted hover:text-text';
-  const activeColor = variant === 'glass' ? 'text-slate-900' : 'text-text';
-  const disabledColor = variant === 'glass' ? 'text-slate-700/40' : 'text-text-muted/50';
+  // Theme-aware across both variants — all colours read from tokens.
+  // Keeping the `variant` parameter in case we need to fork behaviour
+  // later (e.g. larger hit areas on a glass hero).
+  void variant;
+  const baseColor = 'text-text-muted hover:text-text';
+  const activeColor = 'text-text';
+  const disabledColor = 'text-text-muted/50';
 
   return (
     <nav className="hidden items-center gap-7 lg:flex">
