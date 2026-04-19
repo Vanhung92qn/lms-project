@@ -17,14 +17,14 @@ export function NavItems({ variant = 'solid' }: { variant?: 'solid' | 'glass' })
   const pathname = usePathname();
 
   const items: Array<{ key: keyof IntlMessages; href: string | null }> = [
-    { key: 'home',      href: '/' },
-    { key: 'roadmap',   href: null },
-    { key: 'ai_tutor',  href: null },
-    { key: 'learn',     href: null },
-    { key: 'challenge', href: null },
-    { key: 'contest',   href: null },
+    { key: 'home',        href: '/' },
+    { key: 'roadmap',     href: '/courses' },
+    { key: 'ai_tutor',    href: null },
+    { key: 'learn',       href: '/courses' },
+    { key: 'challenge',   href: null },
+    { key: 'contest',     href: null },
     { key: 'leaderboard', href: null },
-    { key: 'forum',     href: null },
+    { key: 'forum',       href: null },
   ];
 
   // Theme-aware across both variants — all colours read from tokens.

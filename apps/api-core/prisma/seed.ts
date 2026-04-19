@@ -60,6 +60,97 @@ async function upsertUser(
   });
 }
 
+async function seedDemoCourse(): Promise<void> {
+  const teacher = await prisma.user.findUnique({ where: { email: 'teacher@khohoc.online' } });
+  if (!teacher) throw new Error('teacher seed missing');
+
+  // Idempotent: skip if the slug already exists.
+  const existing = await prisma.course.findUnique({ where: { slug: 'cpp-from-zero' } });
+  if (existing) {
+    console.warn('[seed] demo course already present — skipping');
+    return;
+  }
+
+  const course = await prisma.course.create({
+    data: {
+      slug: 'cpp-from-zero',
+      title: 'C++ từ căn bản đến nâng cao',
+      description:
+        'Lộ trình C++ thực hành với AI Tutor, tập trung giải thuật, cấu trúc dữ liệu và lập trình thi đấu.',
+      teacherId: teacher.id,
+      status: 'published',
+      pricingModel: 'free',
+      coverUrl: null,
+      locale: 'vi',
+      publishedAt: new Date(),
+      modules: {
+        create: [
+          {
+            title: 'Khởi động',
+            sortOrder: 1,
+            lessons: {
+              create: [
+                {
+                  title: 'Chào mừng đến với C++',
+                  sortOrder: 1,
+                  type: 'markdown',
+                  estMinutes: 8,
+                  contentMarkdown: [
+                    '# Chào mừng đến với C++',
+                    '',
+                    'Trong khoá này bạn sẽ học C++ bằng cách gõ — không video, không lý thuyết suông.',
+                    '',
+                    'Mỗi bài gồm một đoạn lý thuyết ngắn + một bài tập code chạy trong sandbox. AI Tutor sẽ nhảy vào khi bạn gặp lỗi biên dịch.',
+                    '',
+                    '**Yêu cầu:** không cần cài đặt gì — trình biên dịch chạy trên server.',
+                  ].join('\n'),
+                },
+                {
+                  title: 'Hello, world!',
+                  sortOrder: 2,
+                  type: 'exercise',
+                  estMinutes: 5,
+                  contentMarkdown: [
+                    '## Nhiệm vụ',
+                    '',
+                    'Viết chương trình C++ in ra dòng chữ `Hello, world!` (không xuống dòng).',
+                    '',
+                    'Bấm **Run** để kiểm tra — sandbox sẽ so sánh output của bạn với kết quả mong đợi.',
+                  ].join('\n'),
+                  exercise: {
+                    create: {
+                      language: 'cpp',
+                      starterCode: [
+                        '#include <iostream>',
+                        '',
+                        'int main() {',
+                        '    // TODO: in ra "Hello, world!"',
+                        '    return 0;',
+                        '}',
+                      ].join('\n'),
+                      solutionCode: [
+                        '#include <iostream>',
+                        'int main() { std::cout << "Hello, world!"; return 0; }',
+                      ].join('\n'),
+                      testCases: {
+                        create: [
+                          { input: '', expectedOutput: 'Hello, world!', isSample: true, weight: 1 },
+                        ],
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  console.warn(`[seed] demo course created: ${course.slug}`);
+}
+
 async function main() {
   console.warn('[seed] upserting roles');
   await upsertRoles();
@@ -68,6 +159,9 @@ async function main() {
   await upsertUser('admin@khohoc.online', 'Admin User', 'Admin@12345', 'admin');
   await upsertUser('teacher@khohoc.online', 'Teacher Demo', 'Teacher@12345', 'teacher');
   await upsertUser('student@khohoc.online', 'Student Demo', 'Student@12345', 'student');
+
+  console.warn('[seed] seeding demo course');
+  await seedDemoCourse();
 
   console.warn('[seed] done');
 }

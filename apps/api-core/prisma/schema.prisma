@@ -46,6 +46,8 @@ model User {
   refreshTokens  RefreshToken[]
   auditLogs      AuditLog[]
   oauthAccounts  OAuthAccount[]
+  coursesTaught  Course[]       @relation("CoursesTaught")
+  enrollments    Enrollment[]
 
   @@index([status])
   @@map("users")
@@ -63,6 +65,147 @@ model OAuthAccount {
   @@unique([provider, providerId])
   @@index([userId])
   @@map("oauth_accounts")
+}
+
+// -----------------------------------------------------------------------------
+// Catalog / CMS
+// Courses are owned by a teacher; drafts are private, published courses land
+// in the public catalog. Modules order lessons within a course; lessons carry
+// markdown (theory), an exercise (code task), or a quiz (P5).
+// -----------------------------------------------------------------------------
+
+enum CourseStatus {
+  draft
+  published
+  archived
+}
+
+enum PricingModel {
+  free
+  paid
+}
+
+enum LessonType {
+  markdown
+  exercise
+  quiz
+}
+
+enum CodeLanguage {
+  c
+  cpp
+  js
+  python
+}
+
+model Course {
+  id            String        @id @default(uuid()) @db.Uuid
+  slug          String        @unique
+  title         String
+  description   String?
+  teacherId     String        @map("teacher_id") @db.Uuid
+  status        CourseStatus  @default(draft)
+  pricingModel  PricingModel  @default(free) @map("pricing_model")
+  priceCents    Int?          @map("price_cents")
+  currency      String?       @db.Char(3)
+  coverUrl      String?       @map("cover_url")
+  locale        String        @default("vi")
+  publishedAt   DateTime?     @map("published_at") @db.Timestamptz(6)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher       User          @relation("CoursesTaught", fields: [teacherId], references: [id])
+  modules       Module[]
+  enrollments   Enrollment[]
+
+  @@index([status, publishedAt])
+  @@index([teacherId])
+  @@map("courses")
+}
+
+model Module {
+  id         String   @id @default(uuid()) @db.Uuid
+  courseId   String   @map("course_id") @db.Uuid
+  title      String
+  sortOrder  Int      @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons    Lesson[]
+
+  @@unique([courseId, sortOrder])
+  @@index([courseId])
+  @@map("modules")
+}
+
+model Lesson {
+  id              String     @id @default(uuid()) @db.Uuid
+  moduleId        String     @map("module_id") @db.Uuid
+  title           String
+  sortOrder       Int        @map("sort_order")
+  type            LessonType
+  contentMarkdown String?    @map("content_markdown") @db.Text
+  estMinutes      Int?       @map("est_minutes")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  module          Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  exercise        Exercise?
+
+  @@unique([moduleId, sortOrder])
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+model Exercise {
+  id             String       @id @default(uuid()) @db.Uuid
+  lessonId       String       @unique @map("lesson_id") @db.Uuid
+  language       CodeLanguage
+  starterCode    String?      @map("starter_code") @db.Text
+  solutionCode   String?      @map("solution_code") @db.Text
+  memoryLimitMb  Int          @default(128) @map("memory_limit_mb")
+  timeLimitMs    Int          @default(3000) @map("time_limit_ms")
+
+  lesson         Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  testCases      TestCase[]
+
+  @@map("exercises")
+}
+
+model TestCase {
+  id             String   @id @default(uuid()) @db.Uuid
+  exerciseId     String   @map("exercise_id") @db.Uuid
+  input          String?  @db.Text
+  expectedOutput String?  @map("expected_output") @db.Text
+  isSample       Boolean  @default(false) @map("is_sample")
+  weight         Int      @default(1)
+
+  exercise       Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@map("test_cases")
+}
+
+// -----------------------------------------------------------------------------
+// Learning — enrollment binds a user to a course; progress_pct is a
+// denormalised cache that gets updated on submission / lesson-complete events
+// (lands in P3 / P5). MVP treats enrollment as free for any published course.
+// -----------------------------------------------------------------------------
+
+model Enrollment {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  enrolledAt   DateTime @default(now()) @map("enrolled_at") @db.Timestamptz(6)
+  progressPct  Decimal  @default(0) @map("progress_pct") @db.Decimal(5, 2)
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("enrollments")
 }
 
 model Role {

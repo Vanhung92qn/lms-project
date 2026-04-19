@@ -68,6 +68,28 @@
   },
   "dashboard": {
     "welcome": "Hello, {name}",
-    "continue": "Continue learning"
+    "subtitle": "Pick a course to continue or explore a new one.",
+    "continue": "Continue →",
+    "enrolled": "Your courses",
+    "no_courses": "You haven't enrolled in any course yet. Browse the catalog to get started.",
+    "load_failed": "Could not load the dashboard."
+  },
+  "catalog": {
+    "title": "All courses",
+    "subtitle": "Pick a learning track — every lesson ships with a sandbox and AI-tutor support.",
+    "empty": "No courses yet.",
+    "fetch_failed": "Could not load the catalog. Please retry.",
+    "browse": "Browse catalog",
+    "curriculum": "Curriculum",
+    "lessons": "Lessons",
+    "locale": "Language",
+    "minutes": "min",
+    "free": "Free",
+    "paid": "Paid",
+    "enrolled": "✓ Enrolled",
+    "enroll_now": "Enroll now",
+    "login_to_enroll": "Sign in to enroll",
+    "enroll_failed": "Enrollment failed. Please retry.",
+    "go_dashboard": "Go to dashboard"
   }
 }
