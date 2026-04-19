@@ -1,6 +1,14 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { TopHeader } from '@/components/header/TopHeader';
 import { Link } from '@/lib/i18n/routing';
-import { ThemePicker } from '@/components/ThemePicker';
+
+// Cinematic home: the only surface that bypasses ClientLayout. Fullscreen
+// looping video backs the hero; <TopHeader variant="glass"/> overlays; text
+// uses Instrument Serif for the display treatment. No decorative blobs,
+// radial gradients or overlays — the video carries the visual depth.
+
+const VIDEO_SRC =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4';
 
 export default async function HomePage({
   params,
@@ -9,53 +17,64 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const tHome = await getTranslations('home');
-  const tBrand = await getTranslations('brand');
-  const tNav = await getTranslations('nav');
+  const t = await getTranslations('hero');
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
-      <header className="mb-10 flex flex-wrap items-center justify-between gap-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-box bg-accent font-bold text-panel shadow-soft">
-            K
-          </div>
-          <div>
-            <div className="text-lg font-bold tracking-tight">{tBrand('name')}</div>
-            <div className="-mt-0.5 text-xs text-text-muted">{tBrand('tagline')}</div>
-          </div>
-        </div>
+    <div
+      className="relative min-h-screen w-full overflow-hidden bg-[hsl(201,100%,13%)]"
+      style={{ fontFamily: "var(--font-body, 'Inter', sans-serif)" }}
+    >
+      {/* Fullscreen looping background */}
+      <video
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      >
+        <source src={VIDEO_SRC} type="video/mp4" />
+      </video>
 
-        <nav className="flex items-center gap-3">
-          <ThemePicker />
-          <Link href="/login" className="btn btn-secondary">
-            {tNav('login')}
-          </Link>
-          <Link href="/register" className="btn">
-            {tNav('register')}
-          </Link>
-        </nav>
-      </header>
+      {/* Slight dim for text contrast */}
+      <div className="absolute inset-0 z-[1] bg-black/25" aria-hidden="true" />
 
-      <section className="card mx-auto max-w-3xl text-center">
-        <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">{tHome('title')}</h1>
-        <p className="mx-auto mb-8 max-w-xl text-base text-text-muted md:text-lg">
-          {tHome('subtitle')}
+      {/* Glass nav */}
+      <TopHeader variant="glass" />
+
+      {/* Hero */}
+      <section className="relative z-10 flex flex-col items-center px-6 py-[90px] pb-40 pt-32 text-center">
+        <h1
+          className="animate-fade-rise max-w-7xl text-5xl font-normal leading-[0.95] tracking-[-2.46px] text-white sm:text-7xl md:text-8xl"
+          style={{ fontFamily: "'Instrument Serif', serif" }}
+        >
+          {t('h1_before')}{' '}
+          <em className="not-italic text-white/60">{t('h1_mid')}</em>{' '}
+          <em className="not-italic text-white/60">{t('h1_after')}</em>
+        </h1>
+
+        <p className="animate-fade-rise-delay mt-8 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
+          {t('subtitle')}
         </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/register" className="btn">
-            {tHome('cta_primary')}
+
+        <div className="animate-fade-rise-delay-2 mt-12 flex flex-wrap items-center justify-center gap-4">
+          <Link
+            href="/register"
+            className="liquid-glass cursor-pointer rounded-full px-14 py-5 text-base font-medium text-white transition-transform hover:scale-[1.03]"
+          >
+            {t('cta_primary')}
           </Link>
           <a
             href="/bento.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-secondary"
+            className="rounded-full border border-white/20 px-14 py-5 text-base font-medium text-white/80 transition-all hover:border-white/40 hover:text-white"
           >
-            {tHome('cta_secondary')}
+            {t('cta_secondary')}
           </a>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

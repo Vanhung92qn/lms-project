@@ -5,25 +5,29 @@
   },
   "nav": {
     "home": "Trang chủ",
-    "courses": "Khoá học",
+    "roadmap": "Duyệt lộ trình",
+    "ai_tutor": "Gia sư AI",
+    "learn": "Học tập",
+    "challenge": "Thử thách",
+    "contest": "Cuộc thi",
+    "leaderboard": "Xếp hạng",
+    "forum": "Thảo luận",
     "dashboard": "Bảng điều khiển",
     "login": "Đăng nhập",
     "register": "Đăng ký",
     "logout": "Đăng xuất"
   },
-  "theme": {
-    "label": "Giao diện",
-    "light": "Light",
-    "dark": "Dark",
-    "dracula": "Dracula",
-    "one-dark": "One Dark",
-    "material": "Material",
-    "tokyo-night": "Tokyo"
+  "settings": {
+    "label": "Thiết lập",
+    "theme": "Giao diện",
+    "locale": "Ngôn ngữ"
   },
-  "home": {
-    "title": "Học lập trình thực hành, không video",
-    "subtitle": "Sân chơi code tương tác với AI Tutor 24/7 và lộ trình cá nhân hoá tự động.",
-    "cta_primary": "Bắt đầu miễn phí",
+  "hero": {
+    "h1_before": "Nơi những",
+    "h1_mid": "ước mơ",
+    "h1_after": "thức dậy giữa tĩnh lặng.",
+    "subtitle": "Chúng tôi tạo không gian học tập cho người tư duy sâu, sáng tạo táo bạo và lặng lẽ nổi loạn. Giữa hỗn độn, một nơi để tập trung và làm việc truyền cảm hứng.",
+    "cta_primary": "Bắt đầu hành trình",
     "cta_secondary": "Xem demo giao diện"
   },
   "auth": {
@@ -32,6 +36,9 @@
       "email": "Email",
       "password": "Mật khẩu",
       "submit": "Đăng nhập",
+      "or": "hoặc",
+      "continue_with_google": "Tiếp tục với Google",
+      "continue_with_github": "Tiếp tục với GitHub",
       "no_account": "Chưa có tài khoản?",
       "register_here": "Đăng ký ngay"
     },
@@ -42,6 +49,9 @@
       "password": "Mật khẩu",
       "password_hint": "Ít nhất 10 ký tự, gồm chữ hoa và số",
       "submit": "Đăng ký",
+      "or": "hoặc",
+      "continue_with_google": "Tiếp tục với Google",
+      "continue_with_github": "Tiếp tục với GitHub",
       "have_account": "Đã có tài khoản?",
       "login_here": "Đăng nhập"
     },
@@ -50,7 +60,8 @@
       "email_taken": "Email đã được đăng ký.",
       "validation_failed": "Thông tin chưa hợp lệ. Vui lòng kiểm tra lại.",
       "rate_limited": "Bạn gửi quá nhanh. Thử lại sau ít giây.",
-      "network": "Không kết nối được máy chủ."
+      "network": "Không kết nối được máy chủ.",
+      "oauth_failed": "Đăng nhập bằng nhà cung cấp ngoài thất bại."
     }
   },
   "dashboard": {

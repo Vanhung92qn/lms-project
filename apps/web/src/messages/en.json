@@ -5,25 +5,29 @@
   },
   "nav": {
     "home": "Home",
-    "courses": "Courses",
+    "roadmap": "Roadmap",
+    "ai_tutor": "AI Tutor",
+    "learn": "Learn",
+    "challenge": "Challenge",
+    "contest": "Contest",
+    "leaderboard": "Leaderboard",
+    "forum": "Forum",
     "dashboard": "Dashboard",
     "login": "Sign in",
     "register": "Sign up",
     "logout": "Sign out"
   },
-  "theme": {
-    "label": "Theme",
-    "light": "Light",
-    "dark": "Dark",
-    "dracula": "Dracula",
-    "one-dark": "One Dark",
-    "material": "Material",
-    "tokyo-night": "Tokyo"
+  "settings": {
+    "label": "Settings",
+    "theme": "Theme",
+    "locale": "Language"
   },
-  "home": {
-    "title": "Learn programming by doing, not by watching",
-    "subtitle": "Interactive text + code exercises with a 24/7 AI tutor and a knowledge graph tailored to you.",
-    "cta_primary": "Start for free",
+  "hero": {
+    "h1_before": "Where",
+    "h1_mid": "dreams",
+    "h1_after": "rise through the silence.",
+    "subtitle": "We're designing tools for deep thinkers, bold creators, and quiet rebels. Amid the chaos, we build digital spaces for sharp focus and inspired work.",
+    "cta_primary": "Begin Journey",
     "cta_secondary": "See design demo"
   },
   "auth": {
@@ -32,6 +36,9 @@
       "email": "Email",
       "password": "Password",
       "submit": "Sign in",
+      "or": "or",
+      "continue_with_google": "Continue with Google",
+      "continue_with_github": "Continue with GitHub",
       "no_account": "No account yet?",
       "register_here": "Create one"
     },
@@ -42,6 +49,9 @@
       "password": "Password",
       "password_hint": "At least 10 characters with an uppercase letter and a number",
       "submit": "Sign up",
+      "or": "or",
+      "continue_with_google": "Continue with Google",
+      "continue_with_github": "Continue with GitHub",
       "have_account": "Already have an account?",
       "login_here": "Sign in"
     },
@@ -50,7 +60,8 @@
       "email_taken": "That email is already registered.",
       "validation_failed": "Some fields aren't valid. Please review them.",
       "rate_limited": "Too many requests. Try again shortly.",
-      "network": "Could not reach the server."
+      "network": "Could not reach the server.",
+      "oauth_failed": "Sign-in with the external provider failed."
     }
   },
   "dashboard": {
