@@ -22,6 +22,27 @@
     "theme": "Giao diện",
     "locale": "Ngôn ngữ"
   },
+  "user_menu": {
+    "trigger": "Mở menu tài khoản",
+    "profile": "Hồ sơ cá nhân",
+    "dashboard": "Bảng điều khiển",
+    "studio": "Studio giảng viên",
+    "logout": "Đăng xuất"
+  },
+  "profile": {
+    "title": "Hồ sơ cá nhân",
+    "subtitle": "Cập nhật thông tin cá nhân và tuỳ chọn hiển thị.",
+    "email_label": "Email",
+    "roles": "Vai trò",
+    "display_name": "Họ và tên",
+    "avatar_url": "Ảnh đại diện (URL)",
+    "avatar_hint": "Dán liên kết ảnh từ Gravatar hoặc Google Photos. Để trống để dùng chữ cái đầu.",
+    "locale": "Ngôn ngữ giao diện",
+    "save": "Lưu thay đổi",
+    "save_success": "Đã lưu.",
+    "save_failed": "Lưu thất bại.",
+    "logout": "Đăng xuất"
+  },
   "hero": {
     "h1_before": "Học code",
     "h1_mid": "đơn giản",

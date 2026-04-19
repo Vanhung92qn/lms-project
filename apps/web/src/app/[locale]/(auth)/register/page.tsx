@@ -5,11 +5,13 @@ import { useTranslations } from 'next-intl';
 import { api, ApiError } from '@/lib/api';
 import { Link, useRouter } from '@/lib/i18n/routing';
 import { OAuthButtons } from '@/components/auth/OAuthButtons';
+import { useSession } from '@/lib/session';
 
 export default function RegisterPage() {
   const t = useTranslations('auth.register');
   const tErr = useTranslations('auth.errors');
   const router = useRouter();
+  const session = useSession();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,10 +29,8 @@ export default function RegisterPage() {
         password,
         display_name: displayName,
       });
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('lms-access', res.tokens.access_token);
-        sessionStorage.setItem('lms-refresh', res.tokens.refresh_token);
-      }
+      // Hand off to SessionProvider — avatar menu appears immediately.
+      session.login(res.tokens.access_token, res.tokens.refresh_token, res.user);
       router.push('/dashboard');
     } catch (err) {
       if (err instanceof ApiError) {

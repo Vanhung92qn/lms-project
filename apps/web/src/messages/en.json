@@ -22,6 +22,27 @@
     "theme": "Theme",
     "locale": "Language"
   },
+  "user_menu": {
+    "trigger": "Open account menu",
+    "profile": "Profile",
+    "dashboard": "Dashboard",
+    "studio": "Instructor studio",
+    "logout": "Sign out"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Update your personal info and display preferences.",
+    "email_label": "Email",
+    "roles": "Roles",
+    "display_name": "Display name",
+    "avatar_url": "Avatar URL",
+    "avatar_hint": "Paste an image URL from Gravatar or Google Photos. Leave blank to use initials.",
+    "locale": "Interface language",
+    "save": "Save changes",
+    "save_success": "Saved.",
+    "save_failed": "Save failed.",
+    "logout": "Sign out"
+  },
   "hero": {
     "h1_before": "Simple",
     "h1_mid": "learning",
