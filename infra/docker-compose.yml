@@ -1,0 +1,82 @@
+# Local development stack for AI-LMS.
+# Only the services needed for P1 are enabled (postgres, redis, traefik).
+# Ollama / MongoDB will be added in the phase that actually needs them.
+#
+# Usage:
+#   cd /home/root/lms-project
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# Traefik routes http://api.localhost → api-core, http://localhost → web.
+# Add those hosts to /etc/hosts if not using dnsmasq:
+#   127.0.0.1  localhost api.localhost
+
+name: lms-dev
+
+networks:
+  lms-edge:
+    name: lms-edge
+  lms-data:
+    name: lms-data
+    internal: true
+
+volumes:
+  pgdata:
+  redisdata:
+
+services:
+
+  traefik:
+    image: traefik:v3.2
+    container_name: lms-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "8081:8080" # Traefik dashboard — localhost only, dev only
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [lms-edge]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: lms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lms}
+      POSTGRES_USER: ${POSTGRES_USER:-lms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-prod}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432" # Exposed on host for local Prisma migrate / psql
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lms} -d ${POSTGRES_DB:-lms}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [lms-data]
+
+  redis:
+    image: redis:7-alpine
+    container_name: lms-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379" # Exposed for dev tooling
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [lms-data]
