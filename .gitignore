@@ -1,0 +1,61 @@
+# Node
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/pdf-skill/**/*.key
+secrets/
+
+# Databases & data volumes
+data/
+*.sqlite
+*.sqlite3
+pgdata/
+mongodata/
+redisdata/
+ollama-models/
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+*.tgz
+.cache/
