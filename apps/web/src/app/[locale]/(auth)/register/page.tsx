@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { api, ApiError } from '@/lib/api';
 import { Link, useRouter } from '@/lib/i18n/routing';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
 
 export default function RegisterPage() {
   const t = useTranslations('auth.register');
@@ -88,6 +89,14 @@ export default function RegisterPage() {
         <button type="submit" className="btn w-full justify-center" disabled={loading}>
           {loading ? '…' : t('submit')}
         </button>
+
+        <div className="my-6 flex items-center gap-3 text-xs text-text-muted">
+          <div className="h-px flex-1 bg-border" />
+          <span>{t('or')}</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <OAuthButtons intent="register" />
 
         <p className="mt-6 text-center text-sm text-text-muted">
           {t('have_account')}{' '}
