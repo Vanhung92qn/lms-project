@@ -47,9 +47,12 @@ export class OAuthService {
     private readonly auth: AuthService,
   ) {}
 
-  private webOrigin(): string {
-    // Web callback landing page (client consumes the URL fragment).
-    return this.config.get<string>('app.corsOrigin') ?? 'http://localhost:3000';
+  // Web callback landing page (client consumes the URL fragment).
+  // CORS_ORIGIN may be comma-separated (prod + dev); pick the first entry
+  // for the public redirect so https://khohoc.online wins in prod.
+  webOrigin(): string {
+    const raw = this.config.get<string>('app.corsOrigin') ?? 'http://localhost:3000';
+    return raw.split(',')[0]?.trim() || 'http://localhost:3000';
   }
 
   private callbackUrl(provider: OAuthProvider): string {

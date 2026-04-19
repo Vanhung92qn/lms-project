@@ -54,8 +54,10 @@ export class OAuthController {
   ): Promise<void> {
     const normalized = normalizeProvider(provider);
 
+    const web = this.oauth.webOrigin();
+
     if (err) {
-      res.redirect(302, `${process.env.CORS_ORIGIN ?? ''}/auth/oauth/callback#error=${encodeURIComponent(err)}`);
+      res.redirect(302, `${web}/auth/oauth/callback#error=${encodeURIComponent(err)}`);
       return;
     }
 
@@ -64,7 +66,7 @@ export class OAuthController {
     res.clearCookie('lms_oauth_state', { path: `/api/v1/auth/oauth/${normalized}/callback` });
 
     if (!code || !state || savedState !== state) {
-      res.redirect(302, `${process.env.CORS_ORIGIN ?? ''}/auth/oauth/callback#error=invalid_state`);
+      res.redirect(302, `${web}/auth/oauth/callback#error=invalid_state`);
       return;
     }
 
