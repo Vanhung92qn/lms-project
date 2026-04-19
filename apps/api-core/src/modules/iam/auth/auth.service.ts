@@ -128,6 +128,22 @@ export class AuthService {
     return tokens;
   }
 
+  /**
+   * Public escape hatch for the OAuth flow: once we've resolved the user
+   * behind a provider profile, we need the same JWT pair a password login
+   * would have produced. Keeps the token-issuance logic in one place.
+   */
+  async issueTokensPublic(
+    userId: string,
+    email: string,
+    locale: string,
+    roles: Role[],
+    meta?: { ip?: string; userAgent?: string },
+  ): Promise<TokenPair> {
+    const familyId = randomUUID();
+    return this.issueTokens(userId, email, locale, roles, familyId, meta);
+  }
+
   async logout(userId: string, rawToken?: string): Promise<void> {
     if (!rawToken) return;
     try {

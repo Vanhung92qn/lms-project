@@ -17,6 +17,22 @@ export const appConfig = registerAs('app', () => ({
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
   },
 
+  // Public base URL where the API is reachable from the outside world.
+  // Used to build OAuth callback URLs. On the VPS this is https://khohoc.online;
+  // in dev it defaults to http://localhost:4000.
+  publicBaseUrl: process.env.PUBLIC_API_BASE_URL ?? 'http://localhost:4000',
+
+  oauth: {
+    google: {
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
+    },
+    github: {
+      clientId: process.env.GITHUB_OAUTH_CLIENT_ID ?? '',
+      clientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET ?? '',
+    },
+  },
+
   i18n: {
     default: process.env.DEFAULT_LOCALE ?? 'vi',
     supported: (process.env.SUPPORTED_LOCALES ?? 'vi,en').split(','),

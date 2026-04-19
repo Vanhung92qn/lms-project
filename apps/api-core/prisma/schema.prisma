@@ -42,12 +42,27 @@ model User {
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  userRoles     UserRole[]
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  userRoles      UserRole[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+  oauthAccounts  OAuthAccount[]
 
   @@index([status])
   @@map("users")
+}
+
+model OAuthAccount {
+  id         String   @id @default(uuid()) @db.Uuid
+  provider   String   // 'google' | 'github' — kept as string to avoid a migration on every new provider
+  providerId String   @map("provider_id")
+  userId     String   @map("user_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 model Role {

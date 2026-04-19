@@ -4,6 +4,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtAuthGuard } from './auth/jwt.guard';
+import { OAuthController } from './auth/oauth.controller';
+import { OAuthService } from './auth/oauth.service';
 import { UsersController } from './users/users.controller';
 import { RbacService } from './rbac/rbac.service';
 
@@ -18,8 +20,8 @@ import { RbacService } from './rbac/rbac.service';
       }),
     }),
   ],
-  controllers: [AuthController, UsersController],
-  providers: [AuthService, JwtAuthGuard, RbacService],
+  controllers: [AuthController, OAuthController, UsersController],
+  providers: [AuthService, OAuthService, JwtAuthGuard, RbacService],
   exports: [JwtAuthGuard, RbacService, AuthService],
 })
 export class IamModule {}
