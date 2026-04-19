@@ -23,12 +23,14 @@
     "locale": "Language"
   },
   "hero": {
-    "h1_before": "Where",
-    "h1_mid": "dreams",
-    "h1_after": "rise through the silence.",
-    "subtitle": "We're designing tools for deep thinkers, bold creators, and quiet rebels. Amid the chaos, we build digital spaces for sharp focus and inspired work.",
-    "cta_primary": "Begin Journey",
-    "cta_secondary": "See design demo"
+    "h1_before": "Simple",
+    "h1_mid": "learning",
+    "h1_after": "for your coding journey",
+    "subtitle": "An interactive text-first programming space with a 24/7 AI tutor and a knowledge graph tuned to you. Deep focus, steady progress.",
+    "email_placeholder": "Enter your email",
+    "cta_primary": "Create Free Account",
+    "cta_secondary": "See design demo",
+    "reviews": "student reviews"
   },
   "auth": {
     "login": {

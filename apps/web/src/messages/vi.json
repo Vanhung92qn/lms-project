@@ -23,12 +23,14 @@
     "locale": "Ngôn ngữ"
   },
   "hero": {
-    "h1_before": "Nơi những",
-    "h1_mid": "ước mơ",
-    "h1_after": "thức dậy giữa tĩnh lặng.",
-    "subtitle": "Chúng tôi tạo không gian học tập cho người tư duy sâu, sáng tạo táo bạo và lặng lẽ nổi loạn. Giữa hỗn độn, một nơi để tập trung và làm việc truyền cảm hứng.",
-    "cta_primary": "Bắt đầu hành trình",
-    "cta_secondary": "Xem demo giao diện"
+    "h1_before": "Học code",
+    "h1_mid": "đơn giản",
+    "h1_after": "cho hành trình của bạn",
+    "subtitle": "Không gian học lập trình tương tác với Gia sư AI 24/7 và lộ trình cá nhân hoá. Tập trung tuyệt đối, tiến bộ mỗi ngày.",
+    "email_placeholder": "Nhập email của bạn",
+    "cta_primary": "Tạo tài khoản miễn phí",
+    "cta_secondary": "Xem demo giao diện",
+    "reviews": "đánh giá từ học viên"
   },
   "auth": {
     "login": {

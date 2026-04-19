@@ -1,80 +1,213 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { TopHeader } from '@/components/header/TopHeader';
-import { Link } from '@/lib/i18n/routing';
+'use client';
 
-// Cinematic home: the only surface that bypasses ClientLayout. Fullscreen
-// looping video backs the hero; <TopHeader variant="glass"/> overlays; text
-// uses Instrument Serif for the display treatment. No decorative blobs,
-// radial gradients or overlays — the video carries the visual depth.
+// Minimalist, bento-aligned hero. Flipped CloudFront background video fades
+// to white via a two-stop gradient, leaving generous white space for a
+// typographic headline (Geist medium 80 px with an Instrument Serif italic
+// emphasis word at 100 px), a calm description, an email → CTA capture,
+// and a lightweight social-proof bar. Motion staggers the entrance so the
+// page feels intentional.
+
+import { motion } from 'framer-motion';
+import { useLocale, useTranslations } from 'next-intl';
+import type { FormEvent } from 'react';
+import { useRouter } from '@/lib/i18n/routing';
+import { TopHeader } from '@/components/header/TopHeader';
 
 const VIDEO_SRC =
-  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4';
+  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260302_085640_276ea93b-d7da-4418-a09b-2aa5b490e838.mp4';
 
-export default async function HomePage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations('hero');
+// Framer-motion v12 tightened the Variants type: `ease` wants a readonly
+// tuple (or a string keyword), not a plain number[]. `as const` does it.
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const fadeSlideUp = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
+};
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
+};
+
+export default function HomePage() {
+  const locale = useLocale();
+  const t = useTranslations('hero');
+  const router = useRouter();
+
+  const submitEmail = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // Forward the captured email to /register so the user doesn't have to
+    // retype it. Local-storage handoff stays client-only — no server writes.
+    const data = new FormData(e.currentTarget);
+    const email = (data.get('email') as string | null) ?? '';
+    if (email) {
+      try {
+        sessionStorage.setItem('lms-prefill-email', email);
+      } catch {
+        /* ignore */
+      }
+    }
+    router.push('/register');
+  };
 
   return (
-    <div
-      className="relative min-h-screen w-full overflow-hidden bg-[hsl(201,100%,13%)]"
-      style={{ fontFamily: "var(--font-body, 'Inter', sans-serif)" }}
-    >
-      {/* Fullscreen looping background */}
+    <div className="relative min-h-screen w-full overflow-hidden bg-white">
+      {/* Flipped background video */}
       <video
-        className="absolute inset-0 z-0 h-full w-full object-cover"
         autoPlay
         loop
         muted
         playsInline
         preload="auto"
         aria-hidden="true"
+        className="absolute inset-0 z-0 h-full w-full object-cover [transform:scaleY(-1)]"
       >
         <source src={VIDEO_SRC} type="video/mp4" />
       </video>
 
-      {/* Slight dim for text contrast */}
-      <div className="absolute inset-0 z-[1] bg-black/25" aria-hidden="true" />
+      {/* White fade overlay — video bleeds through the top 26% of the viewport */}
+      <div
+        className="absolute inset-0 z-[1] bg-gradient-to-b from-[26.416%] from-[rgba(255,255,255,0)] to-[66.943%] to-white"
+        aria-hidden="true"
+      />
 
-      {/* Glass nav */}
+      {/* Glass header */}
       <TopHeader variant="glass" />
 
-      {/* Hero */}
-      <section className="relative z-10 flex flex-col items-center px-6 py-[90px] pb-40 pt-32 text-center">
-        <h1
-          className="animate-fade-rise max-w-7xl text-5xl font-normal leading-[0.95] tracking-[-2.46px] text-white sm:text-7xl md:text-8xl"
-          style={{ fontFamily: "'Instrument Serif', serif" }}
+      <motion.main
+        initial="hidden"
+        animate="show"
+        variants={stagger}
+        className="relative z-10 mx-auto flex min-h-screen max-w-[1200px] flex-col items-center px-6 pb-24 text-center"
+        style={{ paddingTop: 290, gap: 32, fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
+      >
+        {/* Headline */}
+        <motion.h1
+          variants={fadeSlideUp}
+          className="font-medium tracking-[-0.04em] text-[#0a0a0a]"
+          style={{
+            fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif",
+            fontSize: 'clamp(48px, 8vw, 80px)',
+            lineHeight: 1.05,
+          }}
         >
           {t('h1_before')}{' '}
-          <em className="not-italic text-white/60">{t('h1_mid')}</em>{' '}
-          <em className="not-italic text-white/60">{t('h1_after')}</em>
-        </h1>
+          <span
+            className="italic font-normal"
+            style={{
+              fontFamily: "'Instrument Serif', serif",
+              fontSize: 'clamp(60px, 10vw, 100px)',
+              lineHeight: 0.95,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {t('h1_mid')}
+          </span>{' '}
+          {t('h1_after')}
+        </motion.h1>
 
-        <p className="animate-fade-rise-delay mt-8 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
+        {/* Description */}
+        <motion.p
+          variants={fadeSlideUp}
+          className="max-w-[554px] text-[18px] leading-[1.55]"
+          style={{
+            color: '#373a46',
+            opacity: 0.8,
+            fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif",
+          }}
+        >
           {t('subtitle')}
-        </p>
+        </motion.p>
 
-        <div className="animate-fade-rise-delay-2 mt-12 flex flex-wrap items-center justify-center gap-4">
-          <Link
-            href="/register"
-            className="liquid-glass cursor-pointer rounded-full px-14 py-5 text-base font-medium text-white transition-transform hover:scale-[1.03]"
+        {/* Email capture → CTA */}
+        <motion.form
+          variants={fadeSlideUp}
+          onSubmit={submitEmail}
+          className="flex w-full max-w-[520px] items-center gap-2 p-2"
+          style={{
+            background: '#fcfcfc',
+            border: '1px solid rgba(0,0,0,0.06)',
+            borderRadius: 40,
+            boxShadow: '0px 10px 40px 5px rgba(194,194,194,0.25)',
+          }}
+        >
+          <label htmlFor="hero-email" className="sr-only">
+            {t('email_placeholder')}
+          </label>
+          <input
+            id="hero-email"
+            name="email"
+            type="email"
+            required
+            placeholder={t('email_placeholder')}
+            className="flex-1 rounded-full border-0 bg-transparent px-5 py-3 text-[15px] text-slate-800 outline-none placeholder:text-slate-400"
+            style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
+            autoComplete="email"
+          />
+          <button
+            type="submit"
+            className="rounded-full bg-gradient-to-b from-[#2e2e2e] to-[#121212] px-6 py-3 text-[14px] font-semibold text-white shadow-[inset_-4px_-6px_25px_0px_rgba(201,201,201,0.08),inset_4px_4px_10px_0px_rgba(29,29,29,0.24)] transition-transform hover:scale-[1.02]"
+            style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
           >
             {t('cta_primary')}
-          </Link>
+          </button>
+        </motion.form>
+
+        {/* Social proof */}
+        <motion.div
+          variants={fadeSlideUp}
+          className="flex flex-wrap items-center justify-center gap-3 text-[14px] text-slate-700"
+          style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif" }}
+        >
+          <div className="flex -space-x-2" aria-hidden="true">
+            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-amber-300 to-amber-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-rose-300 to-rose-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-violet-300 to-violet-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-emerald-300 to-emerald-500" />
+            <span className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-sky-300 to-sky-500" />
+          </div>
+          <StarRow />
+          <span>
+            <strong className="text-slate-900">1,020+</strong>{' '}
+            <span className="text-slate-500">{t('reviews')}</span>
+          </span>
+          <span className="text-slate-300" aria-hidden="true">
+            ·
+          </span>
           <a
-            href="/bento.html"
+            href={`/bento.html`}
+            hrefLang={locale}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-white/20 px-14 py-5 text-base font-medium text-white/80 transition-all hover:border-white/40 hover:text-white"
+            className="underline underline-offset-4 transition-colors hover:text-slate-900"
           >
             {t('cta_secondary')}
           </a>
-        </div>
-      </section>
+        </motion.div>
+      </motion.main>
+    </div>
+  );
+}
+
+function StarRow() {
+  return (
+    <div className="flex items-center gap-0.5" aria-label="5 stars">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg
+          key={i}
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="#f5a524"
+          stroke="#f5a524"
+          strokeWidth="1"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 2 15.09 8.26 22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01Z" />
+        </svg>
+      ))}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { Link } from '@/lib/i18n/routing';
  * on the landing page).
  */
 export function Logo({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
-  const colorClass = variant === 'glass' ? 'text-white' : 'text-text';
+  const colorClass = variant === 'glass' ? 'text-[#0a0a0a]' : 'text-text';
   return (
     <Link
       href="/"

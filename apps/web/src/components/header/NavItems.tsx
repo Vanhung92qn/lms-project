@@ -27,9 +27,12 @@ export function NavItems({ variant = 'solid' }: { variant?: 'solid' | 'glass' })
     { key: 'forum',     href: null },
   ];
 
-  const baseColor = variant === 'glass' ? 'text-white/80 hover:text-white' : 'text-text-muted hover:text-text';
-  const activeColor = variant === 'glass' ? 'text-white' : 'text-text';
-  const disabledColor = variant === 'glass' ? 'text-white/40' : 'text-text-muted/50';
+  const baseColor =
+    variant === 'glass'
+      ? 'text-slate-700/80 hover:text-slate-900'
+      : 'text-text-muted hover:text-text';
+  const activeColor = variant === 'glass' ? 'text-slate-900' : 'text-text';
+  const disabledColor = variant === 'glass' ? 'text-slate-700/40' : 'text-text-muted/50';
 
   return (
     <nav className="hidden items-center gap-7 lg:flex">
