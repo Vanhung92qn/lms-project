@@ -1,0 +1,107 @@
+// AI-LMS — Prisma schema
+// P1 scope: IAM (users, roles, refresh tokens) + audit log.
+// Later phases extend this schema with catalog, learning, billing,
+// and knowledge-graph tables. See docs/architecture/data-model.md.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [citext, pgcrypto, vector]
+}
+
+// -----------------------------------------------------------------------------
+// IAM
+// -----------------------------------------------------------------------------
+
+enum UserStatus {
+  active
+  locked
+  pending
+}
+
+enum RoleName {
+  student
+  teacher
+  admin
+  ai_engine
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.Citext
+  passwordHash  String     @map("password_hash")
+  displayName   String     @map("display_name")
+  avatarUrl     String?    @map("avatar_url")
+  locale        String     @default("vi")
+  status        UserStatus @default(active)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  userRoles     UserRole[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id        Int        @id @default(autoincrement()) @db.SmallInt
+  name      RoleName   @unique
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId Int    @map("role_id") @db.SmallInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash")       // argon2id(opaque token)
+  familyId   String    @map("family_id") @db.Uuid
+  issuedAt   DateTime  @default(now()) @map("issued_at") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent")
+  ip         String?
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// -----------------------------------------------------------------------------
+// Audit (append-only security events)
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     String?  @map("user_id") @db.Uuid
+  event      String
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  metadata   Json?    @db.JsonB
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([event, occurredAt])
+  @@map("audit_log")
+}
