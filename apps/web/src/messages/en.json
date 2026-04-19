@@ -1,0 +1,73 @@
+{
+  "brand": {
+    "name": "khohoc.online",
+    "tagline": "Learn coding your way"
+  },
+  "nav": {
+    "home": "Home",
+    "roadmap": "Roadmap",
+    "ai_tutor": "AI Tutor",
+    "learn": "Learn",
+    "challenge": "Challenge",
+    "contest": "Contest",
+    "leaderboard": "Leaderboard",
+    "forum": "Forum",
+    "dashboard": "Dashboard",
+    "login": "Sign in",
+    "register": "Sign up",
+    "logout": "Sign out"
+  },
+  "settings": {
+    "label": "Settings",
+    "theme": "Theme",
+    "locale": "Language"
+  },
+  "hero": {
+    "h1_before": "Simple",
+    "h1_mid": "learning",
+    "h1_after": "for your coding journey",
+    "subtitle": "An interactive text-first programming space with a 24/7 AI tutor and a knowledge graph tuned to you. Deep focus, steady progress.",
+    "email_placeholder": "Enter your email",
+    "cta_primary": "Create Free Account",
+    "cta_secondary": "See design demo",
+    "reviews": "student reviews"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "or": "or",
+      "continue_with_google": "Continue with Google",
+      "continue_with_github": "Continue with GitHub",
+      "no_account": "No account yet?",
+      "register_here": "Create one"
+    },
+    "register": {
+      "title": "Create your account",
+      "display_name": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "password_hint": "At least 10 characters with an uppercase letter and a number",
+      "submit": "Sign up",
+      "or": "or",
+      "continue_with_google": "Continue with Google",
+      "continue_with_github": "Continue with GitHub",
+      "have_account": "Already have an account?",
+      "login_here": "Sign in"
+    },
+    "errors": {
+      "invalid_credentials": "Email or password is incorrect.",
+      "email_taken": "That email is already registered.",
+      "validation_failed": "Some fields aren't valid. Please review them.",
+      "rate_limited": "Too many requests. Try again shortly.",
+      "network": "Could not reach the server.",
+      "oauth_failed": "Sign-in with the external provider failed."
+    }
+  },
+  "dashboard": {
+    "welcome": "Hello, {name}",
+    "continue": "Continue learning"
+  }
+}

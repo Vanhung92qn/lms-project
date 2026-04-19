@@ -1,0 +1,61 @@
+# Routers + services for khohoc.online.
+#
+# The api-core and web apps currently run as native Node processes on the
+# host (not in Docker), so we reach them via the docker host-gateway.
+# When they are eventually containerised, these file-based definitions can
+# be replaced with Docker labels on the container services.
+
+http:
+
+  routers:
+    # Web: all traffic not matching /api/* goes to Next.js
+    web-router:
+      rule: "Host(`khohoc.online`) || Host(`www.khohoc.online`)"
+      entryPoints: [websecure]
+      service: web-svc
+      priority: 1
+      middlewares: [security-headers, compress]
+      tls:
+        options: default
+
+    # API: only /api/* on the same host goes to api-core
+    api-router:
+      rule: "(Host(`khohoc.online`) || Host(`www.khohoc.online`)) && PathPrefix(`/api`)"
+      entryPoints: [websecure]
+      service: api-svc
+      priority: 10
+      middlewares: [security-headers, api-rate-limit]
+      tls:
+        options: default
+
+  services:
+    web-svc:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3000"
+
+    api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:4000"
+
+  middlewares:
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: false
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customFrameOptionsValue: "DENY"
+
+    compress:
+      compress: {}
+
+    api-rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: 1m

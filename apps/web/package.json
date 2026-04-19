@@ -1,0 +1,36 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AI-LMS web — Next.js 14 App Router (khohoc.online)",
+  "scripts": {
+    "dev": "next dev -p ${PORT_WEB:-3000}",
+    "build": "next build",
+    "start": "next start -p ${PORT_WEB:-3000}",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next .turbo dist"
+  },
+  "dependencies": {
+    "@lms/shared-types": "workspace:*",
+    "framer-motion": "^12.38.0",
+    "next": "^14.2.20",
+    "next-intl": "^3.26.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@lms/eslint-config": "workspace:*",
+    "@lms/tsconfig": "workspace:*",
+    "@types/node": "^20.17.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.20",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}

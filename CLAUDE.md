@@ -30,6 +30,31 @@ merge authority on every change.
    with placeholder values.
 7. **Never skip CI hooks** (`--no-verify`, `--no-gpg-sign`, etc.). If a hook
    fails, fix the underlying issue and commit again.
+8. **No `Co-Authored-By` footer.** Commits are authored solely by the
+   configured git user; never append a Claude / AI co-author line.
+
+## Layout architecture (BINDING)
+
+AI-LMS has **two physically separate UI workspaces**. Before building any
+UI component, identify which workspace it belongs to and match the layout.
+Full spec in [`docs/architecture/layout-patterns.md`](docs/architecture/layout-patterns.md).
+
+### A. Client / Student workspace (`/[locale]/*`)
+- **Pattern:** fixed **Top Header** navigation, content scrolls beneath.
+- **Main sitemap:**
+  `Trang chủ | Duyệt lộ trình | Gia sư AI | Học tập | Thử thách` (groups:
+  Luyện tập & Thi đấu) `| Cuộc thi | Xếp hạng | Thảo luận & Forum`.
+- **Implementation:** every route under `apps/web/src/app/[locale]/` uses
+  the `<ClientLayout>` wrapper that renders `<TopHeader />` + outlet.
+  Auth screens (`(auth)` group) are the one exception: they render the
+  card-only layout without the header.
+
+### B. Admin workspace (`/[locale]/admin/*`)
+- **Pattern:** fixed **Left Sidebar** navigation; no top header.
+- **Look:** minimal, data-heavy — tables, charts, dashboards dominate.
+- **Implementation:** every admin page MUST be wrapped in `<AdminLayout>`
+  (includes `<AdminSidebar />`). Consuming the client `<TopHeader />`
+  inside admin is a review blocker.
 
 ## Architectural guardrails
 
