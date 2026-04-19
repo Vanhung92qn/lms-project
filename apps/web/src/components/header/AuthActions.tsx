@@ -1,17 +1,30 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
 import { Link } from '@/lib/i18n/routing';
+import { useSession } from '@/lib/session';
+import { UserMenu } from './UserMenu';
 
 /**
- * Anonymous-only. Login + Register buttons, right-side of the top header.
- * When user-session wiring lands (p1.1), swap this for an avatar dropdown
- * that also shows Đăng xuất.
+ * Right-hand side of the top header.
+ * - Anonymous (no session, OR session still loading): Login + Register pair.
+ * - Authenticated: the UserMenu dropdown (avatar + display name).
+ *
+ * We keep `variant` as a prop so the parent can signal a glass-over-video
+ * styling, but the internal colours all read from theme tokens.
  */
-export function AuthActions({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
+export function AuthActions({ variant: _variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
   const t = useTranslations('nav');
-  const glass = variant === 'glass';
-  // Both variants now use theme tokens. `glass` can be used later to swap
-  // register for a brand-locked dark gloss if we want the hero CTA echo.
-  void glass;
+  const { user, isLoading } = useSession();
+
+  // Render a placeholder width while the first /me probe is in flight so the
+  // header doesn't jump when the buttons swap for the avatar.
+  if (isLoading) {
+    return <div className="h-9 w-24 animate-pulse rounded-pill bg-code" aria-hidden="true" />;
+  }
+
+  if (user) return <UserMenu />;
+
   return (
     <div className="flex items-center gap-2">
       <Link

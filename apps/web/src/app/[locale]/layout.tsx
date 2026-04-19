@@ -3,6 +3,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { locales, isLocale } from '@/lib/i18n/config';
+import { SessionProvider } from '@/lib/session';
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -23,7 +24,7 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      {children}
+      <SessionProvider>{children}</SessionProvider>
     </NextIntlClientProvider>
   );
 }
