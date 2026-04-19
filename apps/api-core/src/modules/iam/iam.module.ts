@@ -22,6 +22,8 @@ import { RbacService } from './rbac/rbac.service';
   ],
   controllers: [AuthController, OAuthController, UsersController],
   providers: [AuthService, OAuthService, JwtAuthGuard, RbacService],
-  exports: [JwtAuthGuard, RbacService, AuthService],
+  // Re-export JwtModule so downstream modules (e.g. CatalogModule) can
+  // opportunistically verify bearer tokens without re-configuring JWT.
+  exports: [JwtAuthGuard, RbacService, AuthService, JwtModule],
 })
 export class IamModule {}

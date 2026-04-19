@@ -27,12 +27,15 @@ export const RBAC_POLICY: Array<[string, string, string]> = [
   // student
   ['student', 'me',                  'read'],
   ['student', 'courses',             'read'],
+  ['student', 'courses:*',           'read'],
   ['student', 'courses:*:lessons',   'read'],
+  ['student', 'enrollments',         'write'],
+  ['student', 'me:enrollments',      'read'],
   ['student', 'submissions',         'write'],
 
-  // teacher — inherits from student + authoring abilities
-  ['teacher', 'courses',             'write'],
-  ['teacher', 'courses:*',           'write'],
+  // teacher — inherits from student (see groupings) + authoring abilities
+  ['teacher', 'teacher:courses',     'write'],
+  ['teacher', 'teacher:courses:*',   'write'],
   ['teacher', 'courses:*:publish',   'write'],
 
   // admin — everything

@@ -7,6 +7,7 @@ import { appConfig } from './modules/config/app.config';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { IamModule } from './modules/iam/iam.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -33,6 +34,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     PrismaModule,
     HealthModule,
     IamModule,
+    CatalogModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
