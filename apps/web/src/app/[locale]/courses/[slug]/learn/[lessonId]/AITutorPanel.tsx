@@ -10,9 +10,12 @@ interface TutorMessage {
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
 
-// Fallback display name while streaming — overwritten by the `model` field
-// in the final `done` event (api-core picks llama vs deepseek per request).
-const DEFAULT_MODEL_LABEL = 'llama3:8b';
+// Fallback labels shown before the stream's `done` event supplies the
+// authoritative model string. Kept in sync with the free-tier model
+// configured in ai-gateway (apps/ai-gateway/app.py — OLLAMA_MODEL).
+const LLAMA_FALLBACK_LABEL = 'qwen2.5-coder:7b';
+const DEEPSEEK_FALLBACK_LABEL = 'deepseek-chat';
+const DEFAULT_MODEL_LABEL = LLAMA_FALLBACK_LABEL;
 
 export function AITutorPanel({
   lessonId,
@@ -128,8 +131,8 @@ export function AITutorPanel({
       // api-core stamps the resolved provider here so we can flip the
       // badge the instant the stream opens — before `done` arrives.
       const providerHeader = res.headers.get('X-Tutor-Provider');
-      if (providerHeader === 'deepseek') setModelLabel('deepseek-chat');
-      else if (providerHeader === 'llama') setModelLabel('llama3:8b');
+      if (providerHeader === 'deepseek') setModelLabel(DEEPSEEK_FALLBACK_LABEL);
+      else if (providerHeader === 'llama') setModelLabel(LLAMA_FALLBACK_LABEL);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
