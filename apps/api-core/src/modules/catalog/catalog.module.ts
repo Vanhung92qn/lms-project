@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PublicCoursesController } from './public/public-courses.controller';
 import { PublicCoursesService } from './public/public-courses.service';
+import { LessonsController } from './public/lessons.controller';
 import { TeacherCoursesController } from './teacher/teacher-courses.controller';
 import { TeacherCoursesService } from './teacher/teacher-courses.service';
 import { EnrollmentController } from './enrollment/enrollment.controller';
@@ -18,7 +19,12 @@ import { IamModule } from '../iam/iam.module';
  */
 @Module({
   imports: [IamModule], // exports JwtAuthGuard + AuthService
-  controllers: [PublicCoursesController, TeacherCoursesController, EnrollmentController],
+  controllers: [
+    PublicCoursesController,
+    LessonsController,
+    TeacherCoursesController,
+    EnrollmentController,
+  ],
   providers: [PublicCoursesService, TeacherCoursesService, EnrollmentService],
 })
 export class CatalogModule {}
