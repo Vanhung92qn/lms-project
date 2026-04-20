@@ -334,15 +334,22 @@ function BottomPanel({
           />
         </div>
       </div>
-      <div className="min-h-0 flex-1">
-        {tab === 'terminal' ? (
+      {/*
+        Both panels stay mounted so the tutor's chat history (and any
+        in-flight stream) survives a tab flip. We toggle with `hidden`
+        instead of conditional rendering — cheap in CSS, preserves
+        component state across the round trip.
+      */}
+      <div className="relative min-h-0 flex-1">
+        <div className={`absolute inset-0 ${tab === 'terminal' ? '' : 'hidden'}`}>
           <TerminalPanel
             submission={submission}
             error={error}
             loading={loading}
             sampleCases={sampleCases}
           />
-        ) : (
+        </div>
+        <div className={`absolute inset-0 ${tab === 'tutor' ? '' : 'hidden'}`}>
           <AITutorPanel
             lessonId={lessonId}
             lessonTitle={lessonTitle}
@@ -350,7 +357,7 @@ function BottomPanel({
             lastVerdict={submission?.verdict ?? null}
             lastStderr={submission?.stderr ?? null}
           />
-        )}
+        </div>
       </div>
     </div>
   );
