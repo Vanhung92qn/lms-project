@@ -38,7 +38,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("ai-gateway")
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3:8b-instruct-q4_K_M")
+# qwen2.5-coder:7b is code-specialist (Alibaba) — hallucinates less on C++/JS/
+# Python review than Llama 3 8B at the same RAM footprint (~4.5 GB Q4). See
+# docs/runbook/ai-tutor.md for the benchmark notes.
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b-instruct-q4_K_M")
 
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
@@ -47,19 +50,62 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 MAX_HISTORY_MESSAGES = 6  # last 3 turns (user + assistant)
 
 # --- prompt templates --------------------------------------------------------
+#
+# These prompts deliberately spell out the sandbox verdict as ground truth.
+# Small quantised CPU models (Llama 3 8B Q4, Qwen 2.5-coder 7B Q4) love to
+# hallucinate syntax errors on code they don't actually parse — e.g. telling
+# a student that `using namespace std;` needs parentheses. The fix is to
+# pin the model to the verdict we already computed in the sandbox: if the
+# code compiled and passed tests, there are NO syntax errors by definition,
+# and the model's job is to praise + suggest style improvements.
 
 SYSTEM_TUTOR_VI = (
-    "Bạn là một trợ giảng lập trình kiên nhẫn, trả lời NGẮN GỌN, rõ ràng. "
-    "Tuyệt đối không viết lại toàn bộ đoạn code hoàn chỉnh — chỉ gợi ý dòng "
-    "cần sửa hoặc khái niệm cần xem lại. Hạn chế 3 đoạn văn, mỗi đoạn ≤ 2 "
-    "câu. Luôn trả lời bằng tiếng Việt trừ khi học viên gõ tiếng Anh."
+    "Bạn là một trợ giảng lập trình chuyên nghiệp, đang review code mà hệ "
+    "thống sandbox đã biên dịch và chấm xong.\n"
+    "\n"
+    "QUY TẮC TUYỆT ĐỐI — KHÔNG ĐƯỢC VI PHẠM:\n"
+    "1. Trường 'Verdict' là kết quả của sandbox thật, LUÔN đúng. Coi nó là "
+    "sự thật tuyệt đối, không bao giờ nghi ngờ.\n"
+    "2. Nếu Verdict là 'ac' (Accepted), code đã biên dịch thành công và "
+    "đúng 100% về cú pháp. TUYỆT ĐỐI không bịa ra lỗi cú pháp. Ví dụ cấm: "
+    "nói `using namespace std;` cần thêm dấu `()`, nói thiếu dấu `;`, nói "
+    "sai kiểu biến khi code đã chạy — đều là BỊA.\n"
+    "3. Khi Verdict là 'ac': khen ngắn gọn, giải thích VÌ SAO code chạy "
+    "đúng (cơ chế), và gợi ý tối đa 1 cải tiến style (ví dụ thêm `\\n`, "
+    "đổi tên biến cho rõ). Không được nói 'code của bạn sai'.\n"
+    "4. Khi Verdict là 'ce'/'wa'/'tle'/'mle'/'re': đọc kỹ compiler output "
+    "và chỉ gợi ý đúng dòng hoặc khái niệm cần sửa. Không viết lại full "
+    "code — chỉ nêu vị trí + lý do.\n"
+    "5. Nếu bạn KHÔNG CHẮC về một chi tiết, nói thẳng 'Mình không chắc "
+    "chỗ này'. Cấm đoán mò.\n"
+    "\n"
+    "Format: tiếng Việt, tối đa 3 đoạn, mỗi đoạn ≤ 2 câu."
 )
 
 SYSTEM_TUTOR_EN = (
-    "You are a patient programming tutor. Keep answers SHORT: at most 3 "
-    "paragraphs, 2 sentences each. Never write the full corrected code — "
-    "only hint at the line to change or the concept to revisit. Match the "
-    "student's language."
+    "You are an expert programming tutor reviewing code that our sandbox "
+    "has already compiled and graded.\n"
+    "\n"
+    "ABSOLUTE RULES — NEVER VIOLATE:\n"
+    "1. The 'Verdict' field is the sandbox's real result and is ALWAYS "
+    "correct. Treat it as ground truth; never second-guess it.\n"
+    "2. If Verdict is 'ac' (Accepted), the code compiled and is 100% "
+    "syntactically correct. NEVER invent syntax errors. Forbidden "
+    "examples: claiming `using namespace std;` needs parentheses, "
+    "claiming a missing semicolon, or flagging a type mismatch when the "
+    "code ran — all of these are hallucinations.\n"
+    "3. When Verdict is 'ac': congratulate briefly, explain WHY the code "
+    "works (mechanism), and offer at most 1 clean-code suggestion (e.g. "
+    "add `\\n`, rename a variable for clarity). Never say 'your code is "
+    "wrong'.\n"
+    "4. When Verdict is 'ce'/'wa'/'tle'/'mle'/'re': read the compiler "
+    "output carefully and hint at the specific line or concept to fix. "
+    "Do not rewrite the full code — just point at the spot.\n"
+    "5. If you are UNSURE about a detail, say 'I'm not sure about this "
+    "part' explicitly. Do not guess.\n"
+    "\n"
+    "Format: match the student's language, at most 3 paragraphs, "
+    "2 sentences each."
 )
 
 
@@ -83,16 +129,51 @@ class TutorRequest(BaseModel):
     history: list[TutorMessage] = Field(default_factory=list, max_length=MAX_HISTORY_MESSAGES)
 
 
+_VERDICT_BANNER_VI = {
+    "ac": "VERDICT = AC → Code ĐÃ BIÊN DỊCH THÀNH CÔNG và chạy đúng. "
+          "Không có lỗi cú pháp. Vai trò của bạn: khen + giải thích cơ chế "
+          "+ gợi ý style.",
+    "ce": "VERDICT = CE → Compile Error. Đọc kỹ compiler output bên dưới "
+          "để gợi ý đúng vị trí.",
+    "wa": "VERDICT = WA → Code biên dịch OK nhưng output sai. Logic có "
+          "vấn đề, không phải cú pháp.",
+    "tle": "VERDICT = TLE → Code chạy quá lâu. Thuật toán chưa tối ưu.",
+    "mle": "VERDICT = MLE → Code dùng quá nhiều bộ nhớ.",
+    "re": "VERDICT = RE → Runtime Error. Code biên dịch OK nhưng crash khi chạy.",
+}
+_VERDICT_BANNER_EN = {
+    "ac": "VERDICT = AC → Code COMPILED AND RAN CORRECTLY. No syntax "
+          "errors exist. Your job: praise + explain the mechanism + "
+          "optionally suggest a style tweak.",
+    "ce": "VERDICT = CE → Compile Error. Read the compiler output below "
+          "and point at the exact location.",
+    "wa": "VERDICT = WA → Code compiled fine, output is wrong. Logic "
+          "problem, not a syntax problem.",
+    "tle": "VERDICT = TLE → Code ran too long. Algorithm is not optimal.",
+    "mle": "VERDICT = MLE → Code used too much memory.",
+    "re": "VERDICT = RE → Runtime Error. Compiled fine but crashed while running.",
+}
+
+
 def build_prompt(req: TutorRequest) -> list[dict]:
     system = SYSTEM_TUTOR_VI if req.locale == "vi" else SYSTEM_TUTOR_EN
     msgs: list[dict] = [{"role": "system", "content": system}]
+
+    # Verdict banner up front — we repeat it separately from the data dump
+    # below because the small models we run on CPU skim the context window
+    # and need the ground truth stated twice to actually believe it.
+    if req.verdict:
+        banners = _VERDICT_BANNER_VI if req.locale == "vi" else _VERDICT_BANNER_EN
+        banner = banners.get(req.verdict.lower())
+        if banner:
+            msgs.append({"role": "system", "content": banner})
 
     # Inject context as a system addendum so the user's turn stays clean.
     context_lines: list[str] = []
     if req.lesson_title:
         context_lines.append(f"Lesson: {req.lesson_title}")
     if req.verdict:
-        context_lines.append(f"Last verdict: {req.verdict}")
+        context_lines.append(f"Sandbox verdict (ground truth): {req.verdict}")
     if req.student_code:
         # Cap context at 4 KB to keep CPU inference fast.
         code = req.student_code[:4096]
