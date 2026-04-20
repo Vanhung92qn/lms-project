@@ -161,3 +161,33 @@ export interface SubmitRequest {
   exercise_id: string;
   source_code: string;
 }
+
+// -------------------- Lesson player --------------------
+
+export interface LessonExerciseDetail {
+  id: string;
+  language: CodeLanguage;
+  starter_code: string;
+  time_limit_ms: number;
+  memory_limit_mb: number;
+  sample_test_cases: Array<{ id: string; input: string; expected_output: string }>;
+}
+
+export interface LessonNavLink {
+  id: string;
+  title: string;
+}
+
+export interface LessonDetail {
+  id: string;
+  title: string;
+  type: LessonType;
+  content_markdown: string;
+  sort_order: number;
+  est_minutes: number | null;
+  course: { id: string; slug: string; title: string };
+  module: { id: string; title: string };
+  prev_lesson: LessonNavLink | null;
+  next_lesson: LessonNavLink | null;
+  exercise: LessonExerciseDetail | null;
+}

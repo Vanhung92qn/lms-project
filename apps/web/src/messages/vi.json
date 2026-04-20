@@ -95,6 +95,36 @@
     "no_courses": "Bạn chưa đăng ký khoá học nào. Hãy duyệt catalog để bắt đầu.",
     "load_failed": "Không tải được dữ liệu bảng điều khiển."
   },
+  "lesson": {
+    "load_failed": "Không tải được bài học.",
+    "submit": "Chấm",
+    "submit_failed": "Chấm điểm thất bại.",
+    "reset": "Khôi phục mã gốc",
+    "no_exercise": "Bài học này chỉ có lý thuyết — chưa có phần code.",
+    "prev": "Bài trước",
+    "next": "Bài kế",
+    "samples": "Ví dụ",
+    "sample_n": "Ví dụ {n}",
+    "input": "Input",
+    "expected": "Output mong đợi",
+    "idle": "sẵn sàng",
+    "last_verdict": "kết quả gần nhất",
+    "hint_submit": "Gõ code bên trên rồi bấm Chấm (Ctrl/Cmd + Enter) để gửi vào sandbox.",
+    "grading": "Đang chấm",
+    "result": "Kết quả",
+    "runtime": "Thời gian",
+    "output_head": "Output (đầu)",
+    "verdict": {
+      "ac": "Accepted",
+      "wa": "Wrong Answer",
+      "tle": "Time Limit Exceeded",
+      "mle": "Memory Limit Exceeded",
+      "ce": "Compile Error",
+      "re": "Runtime Error",
+      "ie": "Internal Error",
+      "pending": "Đang chờ"
+    }
+  },
   "catalog": {
     "title": "Tất cả khoá học",
     "subtitle": "Chọn một lộ trình để bắt đầu — mỗi bài học đều có sandbox code và AI Tutor hỗ trợ.",

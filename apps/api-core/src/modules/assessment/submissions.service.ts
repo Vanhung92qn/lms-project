@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../iam/auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
-import { SandboxClient, type RunnerTestResult, type RunnerVerdict } from './sandbox/sandbox.client';
+import { SandboxClient, type RunnerVerdict } from './sandbox/sandbox.client';
 
 // Synchronous submission flow — api-core forwards the request to the
 // orchestrator, awaits the result, persists it, and returns the fully
