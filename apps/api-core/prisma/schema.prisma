@@ -48,6 +48,7 @@ model User {
   oauthAccounts  OAuthAccount[]
   coursesTaught  Course[]       @relation("CoursesTaught")
   enrollments    Enrollment[]
+  submissions    Submission[]
 
   @@index([status])
   @@map("users")
@@ -168,6 +169,7 @@ model Exercise {
 
   lesson         Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   testCases      TestCase[]
+  submissions    Submission[]
 
   @@map("exercises")
 }
@@ -181,9 +183,65 @@ model TestCase {
   weight         Int      @default(1)
 
   exercise       Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  results        SubmissionTestResult[]
 
   @@index([exerciseId])
   @@map("test_cases")
+}
+
+// -----------------------------------------------------------------------------
+// Assessment — students POST code → sandbox-orchestrator executes → verdict
+// lands here. One Submission per attempt; one SubmissionTestResult per test
+// case the submission was evaluated against.
+// -----------------------------------------------------------------------------
+
+enum Verdict {
+  pending
+  ac      // accepted
+  wa      // wrong answer
+  tle     // time-limit exceeded
+  mle     // memory-limit exceeded
+  ce      // compile error
+  re      // runtime error
+  ie      // internal error (orchestrator failure)
+}
+
+model Submission {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  exerciseId  String       @map("exercise_id") @db.Uuid
+  sourceCode  String       @map("source_code") @db.Text
+  language    CodeLanguage
+  verdict     Verdict      @default(pending)
+  runtimeMs   Int?         @map("runtime_ms")
+  memoryKb    Int?         @map("memory_kb")
+  stderr      String?      @db.Text
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  finishedAt  DateTime?    @map("finished_at") @db.Timestamptz(6)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise    Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  results     SubmissionTestResult[]
+
+  @@index([userId, exerciseId, createdAt])
+  @@index([exerciseId, verdict])
+  @@map("submissions")
+}
+
+model SubmissionTestResult {
+  submissionId String   @map("submission_id") @db.Uuid
+  testCaseId   String   @map("test_case_id") @db.Uuid
+  passed       Boolean
+  verdict      Verdict  @default(pending)
+  actualOutput String?  @map("actual_output") @db.Text
+  runtimeMs    Int?     @map("runtime_ms")
+
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCase     TestCase   @relation(fields: [testCaseId], references: [id])
+
+  @@id([submissionId, testCaseId])
+  @@index([submissionId])
+  @@map("submission_test_results")
 }
 
 // -----------------------------------------------------------------------------
