@@ -1,8 +1,9 @@
-# Runbook — AI Tutor (P4a)
+# Runbook — AI Tutor (P4a + P4b)
 
-Self-hosted Llama 3 8B via Ollama, fronted by a thin `ai-gateway` that
-renders prompt templates and streams Server-Sent Events back through
-api-core to the lesson player.
+Two-backend AI Tutor. Self-hosted **Llama 3 8B** via Ollama (free tier,
+CPU) plus **DeepSeek** API (paid tier, cloud). `api-core` resolves the
+tier per request; `ai-gateway` is provider-agnostic and streams Server-
+Sent Events back through api-core to the lesson player.
 
 ---
 
@@ -16,17 +17,41 @@ api-core to the lesson player.
      │
      ▼
   api-core :4000     — JwtAuthGuard + 10/min rate limit
-     │ POST /v1/tutor/stream (SSE forward)
+                     — TutorTierResolver (lesson → course → entitlement)
+                     — Redis daily cap (200/day for paid-tier users)
+     │ POST /v1/tutor/stream  { provider: "llama" | "deepseek", … }
      ▼
-  ai-gateway :5002   — prompt render + asyncio.Lock(concurrency=1)
-     │ POST /api/chat stream=true
+  ai-gateway :5002   — prompt render + provider branch
+                     ├─→ llama    → Ollama /api/chat (asyncio.Lock cc=1)
+                     └─→ deepseek → api.deepseek.com/v1/chat/completions
      ▼
-  Ollama :11434      — llama3:8b-instruct-q4_K_M Q4_K_M on CPU
+  ┌──────────────────────┬──────────────────────────┐
+  │ Ollama :11434         │ DeepSeek (cloud)         │
+  │ llama3:8b-instruct-Q4 │ deepseek-chat            │
+  │ CPU, 10-20 tok/s      │ ~70-100 tok/s            │
+  └──────────────────────┴──────────────────────────┘
 ```
 
-Key non-negotiable: `OLLAMA_NUM_PARALLEL=1` — Llama on CPU thrashes
-when two requests share the same process, so serialising through a
-queue inside ai-gateway gives a better p95.
+### Tier policy (P4b)
+
+| Caller | Provider | Daily cap | Cap exhausted → |
+|--------|----------|-----------|-----------------|
+| Student on a free course | Llama | — | — |
+| Student enrolled in a paid course (course-specific) | DeepSeek | 200/day | Llama |
+| Teacher owning the course | DeepSeek | 200/day | Llama |
+| Admin | DeepSeek | 200/day | Llama |
+| `DEEPSEEK_API_KEY` missing | Llama | — | — |
+
+Cap is enforced by api-core via Redis `INCR` on key
+`ai:deepseek:daily:<user_id>:<YYYY-MM-DD>` with TTL 86400 s. If Redis
+is down the counter falls back to in-memory per-process, logged as a
+warning — we keep serving rather than blocking everyone.
+
+Key non-negotiable on the Llama side: `OLLAMA_NUM_PARALLEL=1` — Llama
+on CPU thrashes when two requests share the same process, so
+serialising through an asyncio.Lock inside ai-gateway gives a better
+p95. DeepSeek has its own server-side concurrency pool so the lock is
+bypassed for cloud traffic.
 
 ---
 
@@ -61,8 +86,25 @@ curl http://127.0.0.1:5002/healthz
 ```
 
 ### api-core wiring
-`AI_GATEWAY_URL=http://127.0.0.1:5002` in `.env`. No other config
-needed — the NestJS `TutorController` mounts at `POST /api/v1/ai/tutor/ask`.
+- `AI_GATEWAY_URL=http://127.0.0.1:5002`
+- `DEEPSEEK_API_KEY=sk-…` *(optional — leave empty to disable paid tier)*
+- `REDIS_URL=redis://localhost:6379` *(already set for rate-limiting)*
+
+NestJS `TutorController` mounts at `POST /api/v1/ai/tutor/ask`. It
+resolves the tier before forwarding, stamps `X-Tutor-Provider` on the
+SSE response, and injects `provider` into the upstream payload.
+
+### ai-gateway wiring
+Gateway reads both provider configs from its own environment:
+- `OLLAMA_URL=http://127.0.0.1:11434`
+- `OLLAMA_MODEL=llama3:8b-instruct-q4_K_M`
+- `DEEPSEEK_API_KEY=sk-…` *(same value as api-core)*
+- `DEEPSEEK_MODEL=deepseek-chat`
+- `DEEPSEEK_BASE_URL=https://api.deepseek.com`
+
+DeepSeek speaks the OpenAI chat-completions streaming format; the
+gateway re-encodes each delta as our internal SSE frame so api-core and
+the frontend parse a single shape regardless of provider.
 
 ---
 
@@ -158,13 +200,19 @@ docker logs -f lms-ollama
 
 ---
 
-## Known limits (P4b backlog)
+## Known limits (P4c+ backlog)
 
 - Ollama runs on CPU; GPU upgrade is the single largest UX win.
-- No real queue — concurrent requests block each other in-memory.
+- No real queue — concurrent Llama requests block each other in-memory.
   Swap for a BullMQ producer in api-core + a consumer in ai-gateway.
-- No Gemini fallback when Ollama is overloaded / down — planned for
-  P4b.
+- DeepSeek **upstream failure is not yet auto-downgraded to Llama**
+  mid-stream. If DeepSeek 5xxs, the client sees the `error` frame. To
+  retry with Llama, the user re-sends. A controller-level retry
+  (swallow the first error, re-run with `provider=llama`) is easy but
+  deferred to P4c so we can see real error rates first.
 - Conversation state lives in the client only (message history sent
   with each request). Server-side sessions arrive alongside the
   Mongo chat log in P5.
+- Daily cap is per UTC day, not per user's local day — VI users who
+  work past midnight local time may notice the reset is a few hours
+  off. Acceptable for pilot; revisit if we ever ship outside GMT+7.
