@@ -40,6 +40,7 @@ export const appConfig = registerAs('app', () => ({
 
   database: { url: required('DATABASE_URL') },
   redis: { url: process.env.REDIS_URL ?? 'redis://localhost:6379' },
+  sandbox: { url: process.env.SANDBOX_URL ?? 'http://localhost:5001' },
 }));
 
 function required(key: string): string {

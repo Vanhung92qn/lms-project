@@ -8,6 +8,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { IamModule } from './modules/iam/iam.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { AssessmentModule } from './modules/assessment/assessment.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -35,6 +36,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     HealthModule,
     IamModule,
     CatalogModule,
+    AssessmentModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

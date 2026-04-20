@@ -123,3 +123,41 @@ export interface EnrollResponse {
     progress_pct: number;
   };
 }
+
+// -------------------- Assessment / Submissions --------------------
+
+export type Verdict = 'pending' | 'ac' | 'wa' | 'tle' | 'mle' | 'ce' | 're' | 'ie';
+
+export interface SubmissionTestResult {
+  test_case_id: string;
+  passed: boolean;
+  verdict: Verdict;
+  actual_output: string | null;
+  runtime_ms: number | null;
+}
+
+export interface Submission {
+  id: string;
+  exercise_id: string;
+  language: CodeLanguage;
+  verdict: Verdict;
+  runtime_ms: number | null;
+  memory_kb: number | null;
+  stderr: string | null;
+  created_at: string;
+  finished_at: string | null;
+  source_code: string;
+  test_results: SubmissionTestResult[];
+}
+
+export interface SubmissionSummary {
+  id: string;
+  verdict: Verdict;
+  runtime_ms: number | null;
+  created_at: string;
+}
+
+export interface SubmitRequest {
+  exercise_id: string;
+  source_code: string;
+}
