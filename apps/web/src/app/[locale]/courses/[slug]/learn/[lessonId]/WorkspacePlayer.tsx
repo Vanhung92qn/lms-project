@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/lib/i18n/routing';
 import { useSession } from '@/lib/session';
 import { api, ApiError } from '@/lib/api';
+import { telemetry } from '@/lib/telemetry';
 import type { LessonDetail, Submission, Verdict } from '@lms/shared-types';
 import { AITutorPanel } from './AITutorPanel';
 
@@ -76,6 +77,27 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
     }
   }, [source, lesson, STORAGE_KEY]);
 
+  // Telemetry: fire `lesson_open` once the lesson resolves. The guard
+  // keeps us from double-firing on Fast Refresh in dev.
+  useEffect(() => {
+    if (!lesson) return;
+    telemetry.event('lesson_open', lessonId, {
+      courseSlug: lesson.course.slug,
+      lessonType: lesson.type,
+    });
+  }, [lesson, lessonId]);
+
+  // Telemetry: debounced 30s code snapshot. Only snapshots when the
+  // lesson has an exercise and the source actually changed since the
+  // last write. Cancelled on unmount and when the lesson switches.
+  useEffect(() => {
+    if (!lesson?.exercise || !source.trim()) return;
+    const handle = setTimeout(() => {
+      telemetry.snapshot(lessonId, lesson.exercise!.language, source);
+    }, 30_000);
+    return () => clearTimeout(handle);
+  }, [source, lesson, lessonId]);
+
   const onSubmit = async () => {
     if (!lesson?.exercise || submitting) return;
     const token = sessionStorage.getItem('lms-access');
@@ -88,8 +110,18 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
         source_code: source,
       });
       setSubmission(res);
+      const passed = res.test_results.filter((r) => r.passed).length;
+      telemetry.event('submit', lessonId, {
+        verdict: res.verdict,
+        runtimeMs: res.runtime_ms ?? null,
+        passed,
+        total: res.test_results.length,
+      });
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : t('submit_failed'));
+      telemetry.event('submit_error', lessonId, {
+        code: err instanceof ApiError ? err.code : 'unknown',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -317,18 +349,24 @@ function BottomPanel({
   const shouldHintTutor =
     submission != null && submission.verdict !== 'ac' && submission.verdict !== 'pending';
 
+  const switchTab = (next: 'terminal' | 'tutor') => {
+    if (next === tab) return;
+    setTab(next);
+    telemetry.event('tab_switch', lessonId, { from: tab, to: next });
+  };
+
   return (
     <div className="card flex flex-col overflow-hidden p-0">
       <div className="flex items-center justify-between border-b border-border bg-code px-1 py-1">
         <div role="tablist" className="flex items-center gap-1">
           <TabButton
             active={tab === 'terminal'}
-            onClick={() => setTab('terminal')}
+            onClick={() => switchTab('terminal')}
             label={tTutor('tab_terminal')}
           />
           <TabButton
             active={tab === 'tutor'}
-            onClick={() => setTab('tutor')}
+            onClick={() => switchTab('tutor')}
             label={tTutor('tab_tutor')}
             badge={shouldHintTutor && tab !== 'tutor'}
           />
