@@ -53,7 +53,10 @@ import type {
   CourseDetail,
   CourseSummary,
   EnrollResponse,
+  LessonDetail,
   PaginatedCourses,
+  Submission,
+  SubmissionSummary,
 } from '@lms/shared-types';
 
 function authHeaders(token?: string | null): Record<string, string> {
@@ -93,6 +96,24 @@ export const api = {
     }),
   myEnrollments: (token: string) =>
     request<CourseSummary[]>('/me/enrollments', { headers: authHeaders(token) }),
+
+  // Lesson player
+  getLesson: (id: string, token: string) =>
+    request<LessonDetail>(`/lessons/${id}`, { headers: authHeaders(token) }),
+
+  // Submissions
+  submit: (token: string, dto: { exercise_id: string; source_code: string }) =>
+    request<Submission>('/submissions', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+      headers: authHeaders(token),
+    }),
+  getSubmission: (token: string, id: string) =>
+    request<Submission>(`/submissions/${id}`, { headers: authHeaders(token) }),
+  mySubmissionsForExercise: (token: string, exerciseId: string) =>
+    request<SubmissionSummary[]>(`/me/submissions?exercise_id=${exerciseId}`, {
+      headers: authHeaders(token),
+    }),
 
   // Teacher / Studio — all require Bearer; backend enforces teacher|admin role.
   teacher: {
