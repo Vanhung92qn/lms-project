@@ -141,7 +141,8 @@
     "enroll_now": "Enroll now",
     "login_to_enroll": "Sign in to enroll",
     "enroll_failed": "Enrollment failed. Please retry.",
-    "go_dashboard": "Go to dashboard"
+    "go_dashboard": "Go to dashboard",
+    "start_learning": "Start learning →"
   },
   "studio": {
     "title": "My courses",

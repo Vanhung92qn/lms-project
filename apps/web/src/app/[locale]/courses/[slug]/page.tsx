@@ -1,28 +1,71 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
-import { api } from '@/lib/api';
-import { Link } from '@/lib/i18n/routing';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Link, useRouter } from '@/lib/i18n/routing';
+import { api, ApiError } from '@/lib/api';
+import type { CourseDetail } from '@lms/shared-types';
 import { EnrollButton } from './EnrollButton';
 
-export default async function CourseDetailPage({
-  params,
-}: {
-  params: Promise<{ locale: string; slug: string }>;
-}) {
-  const { locale, slug } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations('catalog');
+// Client-rendered so enrollment state can be authoritative (the SSR path
+// can't see the caller's token, so `is_enrolled` would otherwise always
+// be false on first paint). A brief "…" skeleton is the tradeoff vs. the
+// prior SSR; keeps the UX trio (fetch with token → show enrollment →
+// lesson links) aligned on a single render pass.
 
-  // SSR: fetch as anonymous. `is_enrolled` is updated client-side by the
-  // EnrollButton after the user interacts — avoids leaking tokens through
-  // the server fetch path.
-  let course;
-  try {
-    course = await api.getCourse(slug);
-  } catch {
-    notFound();
+export default function CourseDetailPage() {
+  // Next 14 client components get params synchronously via useParams();
+  // the server's Promise-params pattern doesn't apply here.
+  const { slug } = useParams<{ slug: string }>();
+  const t = useTranslations('catalog');
+  const router = useRouter();
+
+  const [course, setCourse] = useState<CourseDetail | null>(null);
+  const [enrolled, setEnrolled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    let token: string | null = null;
+    try {
+      token = sessionStorage.getItem('lms-access');
+    } catch {
+      /* ignore */
+    }
+    (async () => {
+      try {
+        const data = await api.getCourse(slug, token);
+        setCourse(data);
+        setEnrolled(data.is_enrolled);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          setNotFound(true);
+          return;
+        }
+        /* fall through — showing loading with a retry would be ideal */
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [slug]);
+
+  useEffect(() => {
+    if (notFound) router.replace('/courses');
+  }, [notFound, router]);
+
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-[1200px] px-6 py-10 text-text-muted">…</main>
+    );
   }
-  if (!course) notFound();
+  if (!course) {
+    return (
+      <main className="mx-auto max-w-[1200px] px-6 py-10">
+        <p className="text-text-muted">{t('fetch_failed')}</p>
+      </main>
+    );
+  }
 
   const totalLessons = course.modules.reduce((n, m) => n + m.lessons.length, 0);
   const priceLabel =
@@ -59,10 +102,7 @@ export default async function CourseDetailPage({
                   </h3>
                   <ul className="flex flex-col gap-1">
                     {m.lessons.map((l) =>
-                      // Open the lesson player directly. The backend gates
-                      // on enrollment and sends non-enrolled users back to
-                      // this page — no need to toggle the UI here.
-                      course.is_enrolled ? (
+                      enrolled ? (
                         <li key={l.id}>
                           <Link
                             href={`/courses/${course.slug}/learn/${l.id}` as never}
@@ -120,7 +160,12 @@ export default async function CourseDetailPage({
               </span>
             </div>
 
-            <EnrollButton slug={course.slug} initialEnrolled={course.is_enrolled} />
+            <EnrollButton
+              slug={course.slug}
+              enrolled={enrolled}
+              firstLessonId={course.modules[0]?.lessons[0]?.id ?? null}
+              onEnrolled={() => setEnrolled(true)}
+            />
 
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>

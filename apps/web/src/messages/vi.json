@@ -141,7 +141,8 @@
     "enroll_now": "Đăng ký học ngay",
     "login_to_enroll": "Đăng nhập để đăng ký",
     "enroll_failed": "Đăng ký thất bại. Vui lòng thử lại.",
-    "go_dashboard": "Về bảng điều khiển"
+    "go_dashboard": "Về bảng điều khiển",
+    "start_learning": "Bắt đầu học →"
   },
   "studio": {
     "title": "Khoá học của tôi",
