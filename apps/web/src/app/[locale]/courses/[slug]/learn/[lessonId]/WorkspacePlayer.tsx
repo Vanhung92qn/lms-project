@@ -211,6 +211,7 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
               loading={submitting}
               sampleCases={lesson.exercise?.sample_test_cases ?? []}
               lessonTitle={lesson.title}
+              lessonId={lessonId}
               source={source}
             />
           </section>
@@ -296,6 +297,7 @@ function BottomPanel({
   loading,
   sampleCases,
   lessonTitle,
+  lessonId,
   source,
 }: {
   submission: Submission | null;
@@ -303,6 +305,7 @@ function BottomPanel({
   loading: boolean;
   sampleCases: Array<{ id: string; input: string; expected_output: string }>;
   lessonTitle: string;
+  lessonId: string;
   source: string;
 }) {
   const tTutor = useTranslations('tutor');
@@ -341,6 +344,7 @@ function BottomPanel({
           />
         ) : (
           <AITutorPanel
+            lessonId={lessonId}
             lessonTitle={lessonTitle}
             source={source}
             lastVerdict={submission?.verdict ?? null}

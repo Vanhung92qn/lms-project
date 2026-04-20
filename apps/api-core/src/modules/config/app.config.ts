@@ -41,7 +41,12 @@ export const appConfig = registerAs('app', () => ({
   database: { url: required('DATABASE_URL') },
   redis: { url: process.env.REDIS_URL ?? 'redis://localhost:6379' },
   sandbox: { url: process.env.SANDBOX_URL ?? 'http://localhost:5001' },
-  ai: { gatewayUrl: process.env.AI_GATEWAY_URL ?? 'http://localhost:5002' },
+  ai: {
+    gatewayUrl: process.env.AI_GATEWAY_URL ?? 'http://localhost:5002',
+    // Kept here only so the tier resolver can check whether paid-tier
+    // routing is viable — the key itself is consumed inside ai-gateway.
+    deepseek: { apiKey: process.env.DEEPSEEK_API_KEY ?? '' },
+  },
 }));
 
 function required(key: string): string {

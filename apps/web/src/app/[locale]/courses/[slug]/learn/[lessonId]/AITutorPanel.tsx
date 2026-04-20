@@ -10,12 +10,18 @@ interface TutorMessage {
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
 
+// Fallback display name while streaming — overwritten by the `model` field
+// in the final `done` event (api-core picks llama vs deepseek per request).
+const DEFAULT_MODEL_LABEL = 'llama3:8b';
+
 export function AITutorPanel({
+  lessonId,
   lessonTitle,
   source,
   lastVerdict,
   lastStderr,
 }: {
+  lessonId: string;
   lessonTitle: string;
   source: string;
   lastVerdict: string | null;
@@ -26,6 +32,7 @@ export function AITutorPanel({
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  const [modelLabel, setModelLabel] = useState<string>(DEFAULT_MODEL_LABEL);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -73,6 +80,7 @@ export function AITutorPanel({
         body: JSON.stringify({
           intent: autoIntent ? 'fix-error' : 'concept-explain',
           locale: 'vi',
+          lesson_id: lessonId,
           lesson_title: lessonTitle,
           student_code: source,
           compiler_error: lastStderr ?? undefined,
@@ -88,6 +96,12 @@ export function AITutorPanel({
         setStreaming(false);
         return;
       }
+
+      // api-core stamps the resolved provider here so we can flip the
+      // badge the instant the stream opens — before `done` arrives.
+      const providerHeader = res.headers.get('X-Tutor-Provider');
+      if (providerHeader === 'deepseek') setModelLabel('deepseek-chat');
+      else if (providerHeader === 'llama') setModelLabel('llama3:8b');
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -137,6 +151,13 @@ export function AITutorPanel({
       } catch {
         /* ignore */
       }
+    } else if (event === 'done' && data) {
+      try {
+        const parsed = JSON.parse(data) as { model?: string };
+        if (parsed.model) setModelLabel(parsed.model);
+      } catch {
+        /* ignore */
+      }
     } else if (event === 'error') {
       try {
         const parsed = JSON.parse(data);
@@ -158,12 +179,25 @@ export function AITutorPanel({
     void ask(t('auto_question'), true);
   };
 
+  const isDeepseek = modelLabel.startsWith('deepseek');
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-border bg-code px-4 py-2">
         <span className="flex items-center gap-2 font-mono text-xs text-text-muted">
-          <span className="h-2 w-2 rounded-full" style={{ background: streaming ? '#22c55e' : 'var(--text-muted)' }} />
-          {streaming ? t('thinking') : 'AI Tutor · llama3:8b'}
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: streaming ? '#22c55e' : 'var(--text-muted)' }}
+          />
+          {streaming ? t('thinking') : `AI Tutor · ${modelLabel}`}
+          {isDeepseek ? (
+            <span
+              className="rounded-pill px-2 py-0.5 text-[10px] font-semibold uppercase"
+              style={{ background: 'var(--accent)', color: 'var(--panel-bg)' }}
+            >
+              premium
+            </span>
+          ) : null}
         </span>
         {elapsedMs != null ? (
           <span className="text-[10px] text-text-muted">{(elapsedMs / 1000).toFixed(1)}s</span>
