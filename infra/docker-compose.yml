@@ -25,6 +25,7 @@ networks:
 volumes:
   pgdata:
   redisdata:
+  ollamadata:
 
 services:
 
@@ -77,6 +78,31 @@ services:
       timeout: 3s
       retries: 10
     networks: [lms-data]
+
+  ollama:
+    # Self-hosted Llama 3 8B Q4 via Ollama. CPU-only on 8 vCPU → ~10-20
+    # tok/s, so SSE streaming is non-negotiable on the UI side.
+    # OLLAMA_NUM_PARALLEL=1 keeps inference serialised (parallel eats
+    # the same CPU pool and makes p95 worse).
+    # OLLAMA_KEEP_ALIVE=24h avoids the 60-second cold-start model reload.
+    image: ollama/ollama:latest
+    container_name: lms-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_KEEP_ALIVE: "24h"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_HOST: "0.0.0.0:11434"
+    volumes:
+      - ollamadata:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:11434/api/version || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    networks: [lms-edge]
 
   redis:
     image: redis:7-alpine

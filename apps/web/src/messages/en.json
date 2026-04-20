@@ -95,6 +95,17 @@
     "no_courses": "You haven't enrolled in any course yet. Browse the catalog to get started.",
     "load_failed": "Could not load the dashboard."
   },
+  "tutor": {
+    "tab_terminal": "Terminal",
+    "tab_tutor": "AI Tutor",
+    "thinking": "AI is thinking…",
+    "empty_hint": "Ask the AI about this exercise, your compile errors or a concept you're stuck on.",
+    "ask_about_verdict": "Why was the verdict {verdict}?",
+    "auto_question": "My submission failed. What should I fix?",
+    "input_placeholder": "Ask the AI tutor…",
+    "send": "Send",
+    "sign_in_required": "Sign in to use the AI Tutor."
+  },
   "lesson": {
     "load_failed": "Could not load the lesson.",
     "submit": "Submit",
