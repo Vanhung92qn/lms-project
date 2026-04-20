@@ -37,6 +37,34 @@ export function AITutorPanel({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Token coalescing — DeepSeek pushes ~100 tokens/s and Llama ~20/s; calling
+  // setMessages for each one drops frames on a CPU-bound VPS. We buffer
+  // deltas into a ref and flush once per animation frame, so the conversation
+  // state updates at most ~60 Hz regardless of incoming token rate.
+  const pendingDeltaRef = useRef<string>('');
+  const flushScheduledRef = useRef<boolean>(false);
+
+  const flushPending = () => {
+    const chunk = pendingDeltaRef.current;
+    pendingDeltaRef.current = '';
+    flushScheduledRef.current = false;
+    if (!chunk) return;
+    setMessages((prev) => {
+      const next = [...prev];
+      const last = next[next.length - 1];
+      if (last?.role === 'assistant') {
+        next[next.length - 1] = { ...last, content: last.content + chunk };
+      }
+      return next;
+    });
+  };
+
+  const scheduleFlush = () => {
+    if (flushScheduledRef.current) return;
+    flushScheduledRef.current = true;
+    requestAnimationFrame(flushPending);
+  };
+
   // Auto-scroll the conversation as tokens arrive.
   useEffect(() => {
     const el = scrollRef.current;
@@ -119,9 +147,11 @@ export function AITutorPanel({
           processEvent(raw);
         }
       }
+      flushPending();
       setStreaming(false);
       setElapsedMs(Math.round(performance.now() - startedAt));
     } catch (e) {
+      flushPending();
       if ((e as Error).name !== 'AbortError') {
         setError((e as Error).message);
       }
@@ -140,18 +170,14 @@ export function AITutorPanel({
     if (event === 'token' && data) {
       try {
         const { delta } = JSON.parse(data) as { delta: string };
-        setMessages((prev) => {
-          const next = [...prev];
-          const last = next[next.length - 1];
-          if (last?.role === 'assistant') {
-            next[next.length - 1] = { ...last, content: last.content + delta };
-          }
-          return next;
-        });
+        pendingDeltaRef.current += delta;
+        scheduleFlush();
       } catch {
         /* ignore */
       }
     } else if (event === 'done' && data) {
+      // Flush anything still buffered before the terminal event lands.
+      flushPending();
       try {
         const parsed = JSON.parse(data) as { model?: string };
         if (parsed.model) setModelLabel(parsed.model);
@@ -159,6 +185,7 @@ export function AITutorPanel({
         /* ignore */
       }
     } else if (event === 'error') {
+      flushPending();
       try {
         const parsed = JSON.parse(data);
         setError(parsed.message ?? 'upstream error');

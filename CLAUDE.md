@@ -12,8 +12,10 @@ merge authority on every change.
 
 ## Non-negotiable rules
 
-1. **Never push to `main` directly.** Every change lands via a pull request
-   into `develop` first. `develop → main` is a human-gated release.
+1. **Trunk-based development — PRs target `main` directly.** There is no
+   `develop` branch. Every change lands as `feat/*` → PR → `main`, merged by
+   the human product owner. Never push to `main` directly; always go
+   through a PR.
 2. **Branch naming:** `feat/<scope>-<short-desc>`, `fix/<scope>-<short-desc>`,
    `chore/<scope>-<short-desc>`, `docs/<scope>-<short-desc>`. Lower-kebab-case.
 3. **Conventional Commits only.** Examples:
