@@ -6,23 +6,27 @@ import { useRouter } from '@/lib/i18n/routing';
 import { api, ApiError } from '@/lib/api';
 
 /**
- * Client-only enroll button.
- *
- * - Reads the access token from sessionStorage (set by login/register/oauth).
- * - If no token, redirects to /login (preserving intent via `next=` query).
- * - On success, flips the local state to "already enrolled" and nudges the
- *   user to /dashboard.
+ * Enroll CTA. Props:
+ *   enrolled        — parent-owned state so the lesson list can flip to
+ *                     clickable links the moment this button succeeds
+ *                     (we don't redirect the user away any more).
+ *   firstLessonId   — destination for the "Start learning" shortcut.
+ *   onEnrolled      — callback the parent uses to flip its `enrolled`
+ *                     state without a server round-trip.
  */
 export function EnrollButton({
   slug,
-  initialEnrolled,
+  enrolled,
+  firstLessonId,
+  onEnrolled,
 }: {
   slug: string;
-  initialEnrolled: boolean;
+  enrolled: boolean;
+  firstLessonId: string | null;
+  onEnrolled: () => void;
 }) {
   const t = useTranslations('catalog');
   const router = useRouter();
-  const [enrolled, setEnrolled] = useState<boolean>(initialEnrolled);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState(false);
@@ -35,6 +39,14 @@ export function EnrollButton({
     }
   }, []);
 
+  const startLearning = () => {
+    if (firstLessonId) {
+      router.push(`/courses/${slug}/learn/${firstLessonId}` as never);
+    } else {
+      router.push('/dashboard');
+    }
+  };
+
   const onClick = async () => {
     setError(null);
     let token: string | null = null;
@@ -44,14 +56,15 @@ export function EnrollButton({
       token = null;
     }
     if (!token) {
-      router.push(`/login`);
+      router.push('/login');
       return;
     }
     setLoading(true);
     try {
       await api.enroll(slug, token);
-      setEnrolled(true);
-      router.push('/dashboard');
+      // Keep the student on this page — the parent updates its enrollment
+      // state via this callback so the curriculum becomes clickable.
+      onEnrolled();
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -71,10 +84,10 @@ export function EnrollButton({
         </div>
         <button
           type="button"
-          onClick={() => router.push('/dashboard')}
-          className="btn btn-secondary w-full justify-center"
+          onClick={startLearning}
+          className="btn w-full justify-center"
         >
-          {t('go_dashboard')}
+          {firstLessonId ? t('start_learning') : t('go_dashboard')}
         </button>
       </div>
     );
