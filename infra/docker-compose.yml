@@ -26,6 +26,7 @@ volumes:
   pgdata:
   redisdata:
   ollamadata:
+  mongodata:
 
 services:
 
@@ -118,4 +119,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks: [lms-data]
+
+  mongo:
+    # Telemetry + behavioural data store (P5+): AI chat sessions, editor
+    # code snapshots, learning events. We use the flexible-schema ethos of
+    # Mongo rather than a JSONB Postgres table because writes are heavy,
+    # queries are mostly by (userId, lessonId) index scans, and the shape
+    # of each collection is expected to evolve as the data-science service
+    # matures. Bind-published on 127.0.0.1 only — never expose publicly.
+    # RAM budget: ~1 GB steady state for the pilot load; WiredTiger cache
+    # capped via --wiredTigerCacheSizeGB to protect the 16 GB host budget.
+    image: mongo:7
+    container_name: lms-mongo
+    restart: unless-stopped
+    command:
+      - --bind_ip_all
+      - --wiredTigerCacheSizeGB=0.5
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-lms}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-change-me-in-prod}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-lms_telemetry}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --norc --eval 'db.runCommand({ping:1}).ok' | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     networks: [lms-data]
