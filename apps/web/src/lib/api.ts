@@ -93,4 +93,84 @@ export const api = {
     }),
   myEnrollments: (token: string) =>
     request<CourseSummary[]>('/me/enrollments', { headers: authHeaders(token) }),
+
+  // Teacher / Studio — all require Bearer; backend enforces teacher|admin role.
+  teacher: {
+    listMine: (token: string) =>
+      request<CourseSummary[]>('/teacher/courses', { headers: authHeaders(token) }),
+    detail: (token: string, id: string) =>
+      request<CourseDetail>(`/teacher/courses/${id}`, { headers: authHeaders(token) }),
+    create: (
+      token: string,
+      dto: {
+        slug: string;
+        title: string;
+        description?: string;
+        locale?: 'vi' | 'en';
+        pricing_model?: 'free' | 'paid';
+        price_cents?: number;
+        currency?: string;
+        cover_url?: string;
+      },
+    ) =>
+      // Returns the raw Course row — we only need .id + .slug to navigate.
+      request<{ id: string; slug: string }>('/teacher/courses', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+    update: (
+      token: string,
+      id: string,
+      dto: Partial<{
+        title: string;
+        description: string;
+        locale: 'vi' | 'en';
+        pricing_model: 'free' | 'paid';
+        price_cents: number;
+        currency: string;
+        cover_url: string;
+      }>,
+    ) =>
+      request<{ id: string }>(`/teacher/courses/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+    remove: (token: string, id: string) =>
+      request<void>(`/teacher/courses/${id}`, { method: 'DELETE', headers: authHeaders(token) }),
+    publish: (token: string, id: string) =>
+      request<{ id: string; status: string }>(`/teacher/courses/${id}/publish`, {
+        method: 'POST',
+        headers: authHeaders(token),
+      }),
+    unpublish: (token: string, id: string) =>
+      request<{ id: string; status: string }>(`/teacher/courses/${id}/unpublish`, {
+        method: 'POST',
+        headers: authHeaders(token),
+      }),
+    addModule: (token: string, courseId: string, dto: { title: string; sort_order: number }) =>
+      request<{ id: string }>(`/teacher/courses/${courseId}/modules`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+    addLesson: (
+      token: string,
+      courseId: string,
+      moduleId: string,
+      dto: {
+        title: string;
+        sort_order: number;
+        type: 'markdown' | 'exercise' | 'quiz';
+        content_markdown?: string;
+        est_minutes?: number;
+      },
+    ) =>
+      request<{ id: string }>(`/teacher/courses/${courseId}/modules/${moduleId}/lessons`, {
+        method: 'POST',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+  },
 };

@@ -5,11 +5,13 @@ import { useTranslations } from 'next-intl';
 import { api, ApiError } from '@/lib/api';
 import { Link, useRouter } from '@/lib/i18n/routing';
 import { OAuthButtons } from '@/components/auth/OAuthButtons';
+import { useSession } from '@/lib/session';
 
 export default function LoginPage() {
   const t = useTranslations('auth.login');
   const tErr = useTranslations('auth.errors');
   const router = useRouter();
+  const session = useSession();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,11 +24,10 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await api.login({ email, password });
-      // TODO P1.1: move tokens to HttpOnly cookie via a Next Route Handler.
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('lms-access', res.tokens.access_token);
-        sessionStorage.setItem('lms-refresh', res.tokens.refresh_token);
-      }
+      // Hand off to SessionProvider — writes both tokens to sessionStorage
+      // AND populates the React context so the header swaps Login/Register
+      // for the avatar menu immediately.
+      session.login(res.tokens.access_token, res.tokens.refresh_token, res.user);
       router.push('/dashboard');
     } catch (err) {
       if (err instanceof ApiError) {

@@ -32,8 +32,16 @@ export interface UserSummary {
   id: string;
   email: string;
   display_name: string;
+  avatar_url?: string | null;
   locale: Locale;
   roles: Role[];
+  created_at?: string;
+}
+
+export interface UpdateProfileRequest {
+  display_name?: string;
+  locale?: Locale;
+  avatar_url?: string; // '' clears
 }
 
 export interface AuthResponse {

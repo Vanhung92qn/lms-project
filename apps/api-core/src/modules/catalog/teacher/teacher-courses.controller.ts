@@ -39,6 +39,13 @@ export class TeacherCoursesController {
     return this.courses.listMine(user);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Detail of a course owned by the caller (any status)' })
+  detail(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    this.requireTeacher(user);
+    return this.courses.detail(user, id);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new course (draft)' })
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCourseDto) {
