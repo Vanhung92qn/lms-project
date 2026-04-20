@@ -62,10 +62,13 @@ Defined in `infra/docker-compose.yml`. `docker compose up -d ollama`
 brings it up; bind-published only on `127.0.0.1:11434` because
 there's nothing outside the VPS that should ever hit it directly.
 
-Pull the model (first-time only, ~4.7 GB download):
+Pull the model (first-time only, ~4.5 GB download):
 ```bash
-docker exec lms-ollama ollama pull llama3:8b-instruct-q4_K_M
+docker exec lms-ollama ollama pull qwen2.5-coder:7b-instruct-q4_K_M
 ```
+
+The old llama3 image can stay on disk as a fallback — `OLLAMA_MAX_LOADED_MODELS=1`
+means only one is resident at a time, so the extra 4.9 GB is disk only, not RAM.
 
 List loaded models + health:
 ```bash
@@ -97,7 +100,9 @@ SSE response, and injects `provider` into the upstream payload.
 ### ai-gateway wiring
 Gateway reads both provider configs from its own environment:
 - `OLLAMA_URL=http://127.0.0.1:11434`
-- `OLLAMA_MODEL=llama3:8b-instruct-q4_K_M`
+- `OLLAMA_MODEL=qwen2.5-coder:7b-instruct-q4_K_M` *(switched from llama3 on
+  2026-04-20 after students reported repeated hallucinated syntax errors on
+  correct C++ submissions — qwen is code-specialised and stays on message)*
 - `DEEPSEEK_API_KEY=sk-…` *(same value as api-core)*
 - `DEEPSEEK_MODEL=deepseek-chat`
 - `DEEPSEEK_BASE_URL=https://api.deepseek.com`
