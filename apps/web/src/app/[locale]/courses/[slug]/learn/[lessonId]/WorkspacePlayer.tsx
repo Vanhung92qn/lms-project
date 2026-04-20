@@ -9,6 +9,7 @@ import { Link, useRouter } from '@/lib/i18n/routing';
 import { useSession } from '@/lib/session';
 import { api, ApiError } from '@/lib/api';
 import type { LessonDetail, Submission, Verdict } from '@lms/shared-types';
+import { AITutorPanel } from './AITutorPanel';
 
 // Monaco is a heavy (~2 MB) bundle that imports self-mutating browser
 // globals. Loading it through next/dynamic with ssr:false keeps it out
@@ -204,11 +205,13 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
                 )}
               </div>
             </div>
-            <TerminalPanel
+            <BottomPanel
               submission={submission}
               error={submitError}
               loading={submitting}
               sampleCases={lesson.exercise?.sample_test_cases ?? []}
+              lessonTitle={lesson.title}
+              source={source}
             />
           </section>
         </div>
@@ -285,6 +288,103 @@ function SampleTestCases({
 
 // ---------- Terminal / verdict panel ----------
 
+// Tabbed bottom panel: Terminal (verdict table) ↔ AI Tutor chat. Lives in
+// the grid row that used to hold the solitary terminal — no layout change.
+function BottomPanel({
+  submission,
+  error,
+  loading,
+  sampleCases,
+  lessonTitle,
+  source,
+}: {
+  submission: Submission | null;
+  error: string | null;
+  loading: boolean;
+  sampleCases: Array<{ id: string; input: string; expected_output: string }>;
+  lessonTitle: string;
+  source: string;
+}) {
+  const tTutor = useTranslations('tutor');
+  const [tab, setTab] = useState<'terminal' | 'tutor'>('terminal');
+
+  // Nudge the student toward the AI Tutor whenever a verdict is non-AC.
+  // A subtle dot on the Tutor tab is enough; we don't auto-switch so
+  // they keep seeing the terminal output they just asked for.
+  const shouldHintTutor =
+    submission != null && submission.verdict !== 'ac' && submission.verdict !== 'pending';
+
+  return (
+    <div className="card flex flex-col overflow-hidden p-0">
+      <div className="flex items-center justify-between border-b border-border bg-code px-1 py-1">
+        <div role="tablist" className="flex items-center gap-1">
+          <TabButton
+            active={tab === 'terminal'}
+            onClick={() => setTab('terminal')}
+            label={tTutor('tab_terminal')}
+          />
+          <TabButton
+            active={tab === 'tutor'}
+            onClick={() => setTab('tutor')}
+            label={tTutor('tab_tutor')}
+            badge={shouldHintTutor && tab !== 'tutor'}
+          />
+        </div>
+      </div>
+      <div className="min-h-0 flex-1">
+        {tab === 'terminal' ? (
+          <TerminalPanel
+            submission={submission}
+            error={error}
+            loading={loading}
+            sampleCases={sampleCases}
+          />
+        ) : (
+          <AITutorPanel
+            lessonTitle={lessonTitle}
+            source={source}
+            lastVerdict={submission?.verdict ?? null}
+            lastStderr={submission?.stderr ?? null}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  label,
+  badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  badge?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`relative rounded-pill px-3 py-1 text-xs font-semibold transition-colors ${
+        active ? 'bg-panel text-text shadow-soft' : 'text-text-muted hover:text-text'
+      }`}
+    >
+      {label}
+      {badge ? (
+        <span
+          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
+          style={{ background: '#ef4444' }}
+          aria-hidden="true"
+        />
+      ) : null}
+    </button>
+  );
+}
+
 function TerminalPanel({
   submission,
   error,
@@ -309,15 +409,15 @@ function TerminalPanel({
   }, [sampleCases]);
 
   return (
-    <div className="card flex flex-col overflow-hidden p-0">
-      <div className="flex items-center justify-between border-b border-border bg-code px-4 py-2">
-        <span className="font-mono text-xs text-text-muted">
-          terminal · {t(submission ? 'last_verdict' : 'idle')}
-        </span>
-        {submission ? (
+    <div className="flex h-full flex-col">
+      {submission ? (
+        <div className="flex items-center justify-between border-b border-border bg-code px-4 py-2">
+          <span className="font-mono text-xs text-text-muted">
+            {t('last_verdict')}
+          </span>
           <VerdictBadge verdict={submission.verdict} runtime={submission.runtime_ms} />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-auto p-4 font-mono text-xs">
         {loading ? (
           <p className="text-text-muted">{t('grading')}…</p>

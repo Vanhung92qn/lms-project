@@ -95,6 +95,17 @@
     "no_courses": "Bạn chưa đăng ký khoá học nào. Hãy duyệt catalog để bắt đầu.",
     "load_failed": "Không tải được dữ liệu bảng điều khiển."
   },
+  "tutor": {
+    "tab_terminal": "Terminal",
+    "tab_tutor": "AI Tutor",
+    "thinking": "AI đang suy nghĩ…",
+    "empty_hint": "Hỏi AI về bài tập, lỗi biên dịch hoặc khái niệm bạn đang vướng.",
+    "ask_about_verdict": "Hỏi AI vì sao kết quả là {verdict}",
+    "auto_question": "Tôi vừa submit và bị báo lỗi. Bạn gợi ý tôi nên sửa chỗ nào?",
+    "input_placeholder": "Hỏi AI Tutor…",
+    "send": "Gửi",
+    "sign_in_required": "Vui lòng đăng nhập để dùng AI Tutor."
+  },
   "lesson": {
     "load_failed": "Không tải được bài học.",
     "submit": "Chấm",
