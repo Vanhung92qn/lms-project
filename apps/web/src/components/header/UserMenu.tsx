@@ -77,7 +77,7 @@ export function UserMenu() {
           <MenuLink href="/dashboard" label={t('dashboard')} onNavigate={() => setOpen(false)} />
 
           {user.roles.includes('teacher') || user.roles.includes('admin') ? (
-            <MenuLink href="/dashboard" label={t('studio')} onNavigate={() => setOpen(false)} />
+            <MenuLink href="/studio" label={t('studio')} onNavigate={() => setOpen(false)} />
           ) : null}
 
           <div className="my-2 border-t border-border" />
@@ -101,13 +101,13 @@ function MenuLink({
   label,
   onNavigate,
 }: {
-  href: '/profile' | '/dashboard';
+  href: '/profile' | '/dashboard' | '/studio';
   label: string;
   onNavigate: () => void;
 }) {
   return (
     <Link
-      href={href}
+      href={href as never}
       role="menuitem"
       onClick={onNavigate}
       className="block rounded-box px-3 py-2 text-sm text-text transition-colors hover:bg-code"
