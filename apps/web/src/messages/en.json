@@ -95,6 +95,36 @@
     "no_courses": "You haven't enrolled in any course yet. Browse the catalog to get started.",
     "load_failed": "Could not load the dashboard."
   },
+  "lesson": {
+    "load_failed": "Could not load the lesson.",
+    "submit": "Submit",
+    "submit_failed": "Grading failed.",
+    "reset": "Reset to starter",
+    "no_exercise": "This lesson is theory-only — no coding required.",
+    "prev": "Prev",
+    "next": "Next",
+    "samples": "Samples",
+    "sample_n": "Sample {n}",
+    "input": "Input",
+    "expected": "Expected",
+    "idle": "idle",
+    "last_verdict": "last verdict",
+    "hint_submit": "Write code above then hit Submit (Ctrl/Cmd + Enter) to grade it in the sandbox.",
+    "grading": "Grading",
+    "result": "Result",
+    "runtime": "Runtime",
+    "output_head": "Output (head)",
+    "verdict": {
+      "ac": "Accepted",
+      "wa": "Wrong Answer",
+      "tle": "Time Limit Exceeded",
+      "mle": "Memory Limit Exceeded",
+      "ce": "Compile Error",
+      "re": "Runtime Error",
+      "ie": "Internal Error",
+      "pending": "Pending"
+    }
+  },
   "catalog": {
     "title": "All courses",
     "subtitle": "Pick a learning track — every lesson ships with a sandbox and AI-tutor support.",

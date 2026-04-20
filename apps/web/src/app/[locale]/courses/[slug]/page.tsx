@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { api } from '@/lib/api';
+import { Link } from '@/lib/i18n/routing';
 import { EnrollButton } from './EnrollButton';
 
 export default async function CourseDetailPage({
@@ -57,22 +58,44 @@ export default async function CourseDetailPage({
                     {m.sort_order}. {m.title}
                   </h3>
                   <ul className="flex flex-col gap-1">
-                    {m.lessons.map((l) => (
-                      <li
-                        key={l.id}
-                        className="flex items-center justify-between rounded-box bg-code px-4 py-2 text-sm text-text"
-                      >
-                        <span className="flex items-center gap-3">
-                          <LessonIcon type={l.type} />
-                          <span>{l.title}</span>
-                        </span>
-                        {l.est_minutes ? (
-                          <span className="text-xs text-text-muted">
-                            {l.est_minutes} {t('minutes')}
+                    {m.lessons.map((l) =>
+                      // Open the lesson player directly. The backend gates
+                      // on enrollment and sends non-enrolled users back to
+                      // this page — no need to toggle the UI here.
+                      course.is_enrolled ? (
+                        <li key={l.id}>
+                          <Link
+                            href={`/courses/${course.slug}/learn/${l.id}` as never}
+                            className="flex items-center justify-between rounded-box bg-code px-4 py-2 text-sm text-text transition-colors hover:bg-accent/10"
+                          >
+                            <span className="flex items-center gap-3">
+                              <LessonIcon type={l.type} />
+                              <span>{l.title}</span>
+                            </span>
+                            {l.est_minutes ? (
+                              <span className="text-xs text-text-muted">
+                                {l.est_minutes} {t('minutes')}
+                              </span>
+                            ) : null}
+                          </Link>
+                        </li>
+                      ) : (
+                        <li
+                          key={l.id}
+                          className="flex items-center justify-between rounded-box bg-code px-4 py-2 text-sm text-text"
+                        >
+                          <span className="flex items-center gap-3">
+                            <LessonIcon type={l.type} />
+                            <span>{l.title}</span>
                           </span>
-                        ) : null}
-                      </li>
-                    ))}
+                          {l.est_minutes ? (
+                            <span className="text-xs text-text-muted">
+                              {l.est_minutes} {t('minutes')}
+                            </span>
+                          ) : null}
+                        </li>
+                      ),
+                    )}
                   </ul>
                 </div>
               ))}
