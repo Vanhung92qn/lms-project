@@ -46,6 +46,44 @@ export class TeacherCoursesService {
     );
   }
 
+  async detail(user: AuthenticatedUser, courseId: string) {
+    await this.assertOwn(user, courseId);
+    const course = await this.prisma.course.findUniqueOrThrow({
+      where: { id: courseId },
+      include: {
+        teacher: { select: { id: true, displayName: true } },
+        modules: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            lessons: {
+              orderBy: { sortOrder: 'asc' },
+              select: { id: true, title: true, sortOrder: true, type: true, estMinutes: true },
+            },
+          },
+        },
+      },
+    });
+    // Return the same shape as the public detail endpoint so the frontend
+    // can reuse CourseDetail / ModuleWithLessons types.
+    const lessonCount = course.modules.reduce((n, m) => n + m.lessons.length, 0);
+    return {
+      ...courseSummaryFromPrisma(course, lessonCount),
+      modules: course.modules.map((m) => ({
+        id: m.id,
+        title: m.title,
+        sort_order: m.sortOrder,
+        lessons: m.lessons.map((l) => ({
+          id: l.id,
+          title: l.title,
+          sort_order: l.sortOrder,
+          type: l.type,
+          est_minutes: l.estMinutes,
+        })),
+      })),
+      is_enrolled: false, // teachers view — not applicable
+    };
+  }
+
   async create(user: AuthenticatedUser, dto: CreateCourseDto) {
     const existing = await this.prisma.course.findUnique({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException({ code: 'slug_taken', message: 'Slug is already in use' });
