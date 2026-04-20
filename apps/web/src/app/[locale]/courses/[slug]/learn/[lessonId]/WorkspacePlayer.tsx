@@ -9,7 +9,6 @@ import { Link, useRouter } from '@/lib/i18n/routing';
 import { useSession } from '@/lib/session';
 import { api, ApiError } from '@/lib/api';
 import type { LessonDetail, Submission, Verdict } from '@lms/shared-types';
-import { TopHeader } from '@/components/header/TopHeader';
 
 // Monaco is a heavy (~2 MB) bundle that imports self-mutating browser
 // globals. Loading it through next/dynamic with ssr:false keeps it out
@@ -102,32 +101,26 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
   };
 
   // -- render ------------------------------------------------------------------
+  // NOTE: the parent `/courses/layout.tsx` already wraps every child in
+  // <ClientLayout> (which renders <TopHeader />). Rendering it again here
+  // stacked two identical bars in the viewport — see screenshot from
+  // p3b.1. The fix is simply not to render it here.
   if (isLoading || (!lesson && !loadError)) {
-    return (
-      <>
-        <TopHeader />
-        <main className="grid min-h-[50vh] place-items-center text-text-muted">…</main>
-      </>
-    );
+    return <main className="grid min-h-[50vh] place-items-center text-text-muted">…</main>;
   }
   if (loadError) {
     return (
-      <>
-        <TopHeader />
-        <main className="mx-auto max-w-[800px] px-6 py-10">
-          <div className="card text-center">
-            <p style={{ color: '#ff6b6b' }}>{loadError}</p>
-          </div>
-        </main>
-      </>
+      <main className="mx-auto max-w-[800px] px-6 py-10">
+        <div className="card text-center">
+          <p style={{ color: '#ff6b6b' }}>{loadError}</p>
+        </div>
+      </main>
     );
   }
   if (!lesson) return null;
 
   return (
-    <>
-      <TopHeader />
-      <main className="mx-auto max-w-[1600px] px-4 py-4">
+    <main className="mx-auto max-w-[1600px] px-4 py-4">
         {/* Breadcrumb + nav */}
         <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <nav className="flex items-center gap-2 text-xs text-text-muted">
@@ -211,11 +204,15 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
                 )}
               </div>
             </div>
-            <TerminalPanel submission={submission} error={submitError} loading={submitting} />
+            <TerminalPanel
+              submission={submission}
+              error={submitError}
+              loading={submitting}
+              sampleCases={lesson.exercise?.sample_test_cases ?? []}
+            />
           </section>
         </div>
       </main>
-    </>
   );
 }
 
@@ -292,12 +289,24 @@ function TerminalPanel({
   submission,
   error,
   loading,
+  sampleCases,
 }: {
   submission: Submission | null;
   error: string | null;
   loading: boolean;
+  sampleCases: Array<{ id: string; input: string; expected_output: string }>;
 }) {
   const t = useTranslations('lesson');
+
+  // Map sample id → expected output so test rows can show the expected
+  // output beside the student's actual. Hidden (non-sample) test cases
+  // won't be in this map — the UI shows "—" for their expected column,
+  // preserving the "hidden" contract for graded judges.
+  const sampleById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const tc of sampleCases) m.set(tc.id, tc.expected_output);
+    return m;
+  }, [sampleCases]);
 
   return (
     <div className="card flex flex-col overflow-hidden p-0">
@@ -326,17 +335,45 @@ function TerminalPanel({
             <pre className="whitespace-pre-wrap text-text-muted">{submission.stderr ?? ''}</pre>
           </div>
         ) : (
-          <TestResultsTable submission={submission} />
+          <TestResultsTable submission={submission} sampleById={sampleById} />
         )}
       </div>
     </div>
   );
 }
 
-function TestResultsTable({ submission }: { submission: Submission }) {
+function TestResultsTable({
+  submission,
+  sampleById,
+}: {
+  submission: Submission;
+  sampleById: Map<string, string>;
+}) {
   const t = useTranslations('lesson');
+  const passed = submission.test_results.filter((r) => r.passed).length;
+  const total = submission.test_results.length;
+  const totalRuntime = submission.test_results.reduce((n, r) => n + (r.runtime_ms ?? 0), 0);
+  const allPassed = passed === total && total > 0;
+
   return (
     <div>
+      {/* Summary strip */}
+      <div
+        className="mb-3 flex flex-wrap items-center gap-3 rounded-box border px-3 py-2 text-[11px]"
+        style={{
+          borderColor: allPassed ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
+          background: allPassed ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.06)',
+        }}
+      >
+        <span className="font-semibold" style={{ color: allPassed ? '#22c55e' : '#ef4444' }}>
+          {passed}/{total} {t('passed')}
+        </span>
+        <span className="text-text-muted">·</span>
+        <span className="text-text-muted">{totalRuntime} ms {t('total_runtime')}</span>
+        <span className="text-text-muted">·</span>
+        <VerdictBadge verdict={submission.verdict} />
+      </div>
+
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr className="text-left uppercase tracking-wider text-text-muted">
@@ -344,23 +381,47 @@ function TestResultsTable({ submission }: { submission: Submission }) {
             <th className="py-1">{t('result')}</th>
             <th className="py-1">{t('runtime')}</th>
             <th className="py-1">{t('output_head')}</th>
+            <th className="py-1">{t('expected')}</th>
           </tr>
         </thead>
         <tbody>
-          {submission.test_results.map((r, i) => (
-            <tr key={r.test_case_id} className="border-t border-border">
-              <td className="py-1.5 text-text-muted">{i + 1}</td>
-              <td className="py-1.5">
-                <VerdictBadge verdict={r.verdict} />
-              </td>
-              <td className="py-1.5 text-text-muted">{r.runtime_ms != null ? `${r.runtime_ms} ms` : '—'}</td>
-              <td className="py-1.5 text-text-muted">
-                <code className="break-all">
-                  {(r.actual_output ?? '').slice(0, 80) || <em>(empty)</em>}
-                </code>
-              </td>
-            </tr>
-          ))}
+          {submission.test_results.map((r, i) => {
+            const expected = sampleById.get(r.test_case_id);
+            const isHidden = expected === undefined;
+            return (
+              <tr
+                key={r.test_case_id}
+                className="border-t border-border align-top"
+                style={{
+                  background: r.passed ? 'transparent' : 'rgba(239,68,68,0.04)',
+                }}
+              >
+                <td className="py-1.5 text-text-muted">{i + 1}</td>
+                <td className="py-1.5">
+                  <VerdictBadge verdict={r.verdict} />
+                </td>
+                <td className="py-1.5 text-text-muted">
+                  {r.runtime_ms != null ? `${r.runtime_ms} ms` : '—'}
+                </td>
+                <td className="max-w-[240px] py-1.5 text-text-muted">
+                  <code className="block whitespace-pre-wrap break-all">
+                    {(r.actual_output ?? '').slice(0, 160) || <em className="text-text-muted/70">(empty)</em>}
+                  </code>
+                </td>
+                <td className="max-w-[240px] py-1.5 text-text-muted">
+                  {isHidden ? (
+                    <span className="rounded-pill bg-code px-2 py-0.5 text-[10px] uppercase tracking-wider">
+                      {t('hidden_case')}
+                    </span>
+                  ) : (
+                    <code className="block whitespace-pre-wrap break-all">
+                      {expected.slice(0, 160) || <em className="text-text-muted/70">(empty)</em>}
+                    </code>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {submission.stderr ? (
