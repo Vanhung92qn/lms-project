@@ -10,12 +10,21 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import { IsArray, IsIn, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../iam/auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../iam/auth/auth.types';
+import { TutorTierResolver } from './tier-resolver.service';
 
 class TutorHistoryItem {
   @IsIn(['user', 'assistant'])
@@ -34,6 +43,15 @@ class AskTutorDto {
   @IsOptional()
   @IsIn(['vi', 'en'])
   locale?: 'vi' | 'en';
+
+  /**
+   * Scope hint used to resolve the user's AI tier: lesson → course →
+   * entitlement. Optional so ad-hoc tutor queries (not tied to a lesson)
+   * still work — those always resolve to Llama.
+   */
+  @IsOptional()
+  @IsUUID()
+  lesson_id?: string;
 
   @IsOptional()
   @IsString()
@@ -73,12 +91,14 @@ class AskTutorDto {
  *   - AuthN (Bearer JWT via JwtAuthGuard).
  *   - Per-user rate limit (Throttle 10/min/user).
  *   - Input validation (class-validator on DTO).
- *   - Correlation — we stamp the student id into logs so Grafana alerts
- *     can attribute spike to a specific user.
+ *   - **Provider selection.** We resolve the user's AI tier from DB
+ *     (lesson → course → entitlement) and forward `provider` to the
+ *     gateway so it knows whether to hit Llama or DeepSeek. The gateway
+ *     stays stateless about billing.
+ *   - Correlation — user id + provider stamped into logs.
  *
  * The response body is copied verbatim from ai-gateway → student as
- * `text/event-stream`. Token streaming is what makes 10-30 s CPU
- * inference bearable.
+ * `text/event-stream`.
  */
 @ApiTags('ai')
 @ApiBearerAuth()
@@ -87,7 +107,10 @@ class AskTutorDto {
 export class TutorController {
   private readonly log = new Logger(TutorController.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly tier: TutorTierResolver,
+  ) {}
 
   @Post('ask')
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -100,20 +123,29 @@ export class TutorController {
     const gateway =
       this.config.get<string>('app.ai.gatewayUrl') ?? 'http://127.0.0.1:5002';
 
-    this.log.log(`tutor ask user=${user.id} intent=${dto.intent ?? 'fix-error'}`);
+    const decision = await this.tier.resolve(user, dto.lesson_id);
+    this.log.log(
+      `tutor ask user=${user.id} provider=${decision.provider} reason=${decision.reason}` +
+        (decision.remaining != null ? ` remaining=${decision.remaining}` : ''),
+    );
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    // A non-standard header so the FE can show a "Powered by DeepSeek" badge
+    // without having to parse the `done` frame.
+    res.setHeader('X-Tutor-Provider', decision.provider);
     res.flushHeaders();
+
+    const payload = { ...dto, provider: decision.provider };
 
     let upstream: globalThis.Response;
     try {
       upstream = await fetch(`${gateway}/v1/tutor/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dto),
+        body: JSON.stringify(payload),
       });
     } catch (e) {
       this.log.warn(`ai-gateway unreachable: ${(e as Error).message}`);
@@ -131,7 +163,6 @@ export class TutorController {
       });
     }
 
-    // Pipe the upstream ReadableStream chunk-by-chunk.
     const reader = upstream.body.getReader();
     try {
       for (;;) {
