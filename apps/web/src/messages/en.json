@@ -114,6 +114,9 @@
     "result": "Result",
     "runtime": "Runtime",
     "output_head": "Output (head)",
+    "passed": "passed",
+    "total_runtime": "total runtime",
+    "hidden_case": "hidden",
     "verdict": {
       "ac": "Accepted",
       "wa": "Wrong Answer",

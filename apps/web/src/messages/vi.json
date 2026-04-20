@@ -114,6 +114,9 @@
     "result": "Kết quả",
     "runtime": "Thời gian",
     "output_head": "Output (đầu)",
+    "passed": "test đạt",
+    "total_runtime": "tổng thời gian",
+    "hidden_case": "ẩn",
     "verdict": {
       "ac": "Accepted",
       "wa": "Wrong Answer",
