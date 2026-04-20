@@ -40,6 +40,12 @@ export const appConfig = registerAs('app', () => ({
 
   database: { url: required('DATABASE_URL') },
   redis: { url: process.env.REDIS_URL ?? 'redis://localhost:6379' },
+  // Telemetry store (P5+). Empty URL → writes no-op so the tutor and editor
+  // still work if Mongo is offline; we never want telemetry to block a user.
+  mongo: {
+    url: process.env.MONGO_URL ?? '',
+    db: process.env.MONGO_DB ?? 'lms_telemetry',
+  },
   sandbox: { url: process.env.SANDBOX_URL ?? 'http://localhost:5001' },
   ai: {
     gatewayUrl: process.env.AI_GATEWAY_URL ?? 'http://localhost:5002',
