@@ -115,6 +115,41 @@ export const api = {
       headers: authHeaders(token),
     }),
 
+  // Knowledge Graph (P5b/c) ---------------------------------------------
+  knowledge: {
+    listNodes: (domain?: string) =>
+      request<Array<{ id: string; slug: string; title: string; domain: string }>>(
+        `/knowledge/nodes${domain ? `?domain=${encodeURIComponent(domain)}` : ''}`,
+      ),
+    myMastery: (token: string) =>
+      request<
+        Array<{
+          node: { id: string; slug: string; title: string; domain: string };
+          score: number;
+          confidence: number;
+          attempts: number;
+          lastUpdatedAt: string;
+        }>
+      >('/knowledge/me/mastery', { headers: authHeaders(token) }),
+    nextSuggestion: (token: string, lessonId: string) =>
+      request<{
+        lessonId: string;
+        title: string;
+        courseSlug: string;
+        gatedByPrereq: boolean;
+      } | null>(`/knowledge/lessons/${lessonId}/next-suggestion`, {
+        headers: authHeaders(token),
+      }),
+    lessonTags: (lessonId: string) =>
+      request<{ tags: string[] }>(`/knowledge/lessons/${lessonId}/tags`),
+    tagLesson: (token: string, lessonId: string, nodeSlugs: string[]) =>
+      request<{ tagged: string[] }>(`/knowledge/lessons/${lessonId}/tags`, {
+        method: 'PUT',
+        body: JSON.stringify({ node_slugs: nodeSlugs }),
+        headers: authHeaders(token),
+      }),
+  },
+
   // Teacher / Studio — all require Bearer; backend enforces teacher|admin role.
   teacher: {
     listMine: (token: string) =>

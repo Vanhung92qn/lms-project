@@ -93,7 +93,14 @@
     "continue": "Tiếp tục →",
     "enrolled": "Khoá học của bạn",
     "no_courses": "Bạn chưa đăng ký khoá học nào. Hãy duyệt catalog để bắt đầu.",
-    "load_failed": "Không tải được dữ liệu bảng điều khiển."
+    "load_failed": "Không tải được dữ liệu bảng điều khiển.",
+    "mastery": {
+      "title": "Tiến độ kỹ năng",
+      "subtitle": "Cập nhật sau mỗi bài AC",
+      "strengths": "Bạn đang mạnh ở",
+      "weaknesses": "Cần luyện thêm",
+      "load_failed": "Chưa tải được dữ liệu kỹ năng."
+    }
   },
   "tutor": {
     "tab_terminal": "Terminal",
@@ -137,6 +144,14 @@
       "re": "Runtime Error",
       "ie": "Internal Error",
       "pending": "Đang chờ"
+    },
+    "completion": {
+      "great_job": "Chúc mừng! Bài chấm đã đạt.",
+      "next_up": "Bài học tiếp theo",
+      "continue_cta": "Học tiếp",
+      "loading": "Đang tìm bài kế…",
+      "course_end": "Bạn đã hoàn thành khoá này. 🎉",
+      "prereq_warning": "Bài kế có kiến thức phụ thuộc bạn chưa vững — nên ôn lại trước."
     }
   },
   "catalog": {
@@ -222,7 +237,15 @@
       "delete": "Xoá khoá học",
       "delete_confirm": "Hành động không thể hoàn tác. Tất cả chương + bài học sẽ bị xoá.",
       "delete_confirm_yes": "Xoá vĩnh viễn",
-      "delete_failed": "Xoá thất bại."
+      "delete_failed": "Xoá thất bại.",
+      "tags": {
+        "toggle": "Gắn khái niệm",
+        "hide": "Ẩn",
+        "label": "Khái niệm bài học",
+        "save": "Lưu",
+        "saved": "Đã lưu",
+        "sign_in_required": "Vui lòng đăng nhập."
+      }
     }
   }
 }

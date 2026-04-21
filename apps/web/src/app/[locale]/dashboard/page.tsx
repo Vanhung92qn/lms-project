@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/lib/i18n/routing';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import type { CourseSummary } from '@lms/shared-types';
+import { MasteryWidget } from './MasteryWidget';
 
 // Student dashboard. Session state (user profile) comes from SessionProvider;
 // enrolled courses are fetched from /me/enrollments once we have a token.
@@ -105,6 +106,7 @@ export default function DashboardPage() {
               </Link>
             ))}
           </section>
+          <MasteryWidget />
         </>
       )}
     </main>

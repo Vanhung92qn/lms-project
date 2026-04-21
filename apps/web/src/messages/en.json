@@ -93,7 +93,14 @@
     "continue": "Continue →",
     "enrolled": "Your courses",
     "no_courses": "You haven't enrolled in any course yet. Browse the catalog to get started.",
-    "load_failed": "Could not load the dashboard."
+    "load_failed": "Could not load the dashboard.",
+    "mastery": {
+      "title": "Skill progress",
+      "subtitle": "Updated after each AC submission",
+      "strengths": "Strongest in",
+      "weaknesses": "Needs more practice",
+      "load_failed": "Could not load mastery data."
+    }
   },
   "tutor": {
     "tab_terminal": "Terminal",
@@ -137,6 +144,14 @@
       "re": "Runtime Error",
       "ie": "Internal Error",
       "pending": "Pending"
+    },
+    "completion": {
+      "great_job": "Great job! Your submission passed.",
+      "next_up": "Next lesson",
+      "continue_cta": "Continue",
+      "loading": "Finding your next lesson…",
+      "course_end": "You have finished this course. 🎉",
+      "prereq_warning": "The next lesson builds on a concept you may not have mastered yet — consider reviewing first."
     }
   },
   "catalog": {
@@ -222,7 +237,15 @@
       "delete": "Delete course",
       "delete_confirm": "This cannot be undone. All modules and lessons will be removed.",
       "delete_confirm_yes": "Delete permanently",
-      "delete_failed": "Delete failed."
+      "delete_failed": "Delete failed.",
+      "tags": {
+        "toggle": "Tag concepts",
+        "hide": "Hide",
+        "label": "Knowledge concepts",
+        "save": "Save",
+        "saved": "Saved",
+        "sign_in_required": "Please sign in."
+      }
     }
   }
 }
