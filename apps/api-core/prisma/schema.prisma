@@ -59,6 +59,7 @@ model User {
   entitlements       Entitlement[]
   quizAttempts       QuizAttempt[]
   lessonCompletions  LessonCompletion[]
+  onboarding         OnboardingProfile?
 
   @@index([status])
   @@map("users")
@@ -76,6 +77,40 @@ model OAuthAccount {
   @@unique([provider, providerId])
   @@index([userId])
   @@map("oauth_accounts")
+}
+
+// Cold-start onboarding questionnaire (P9.0 PR D).
+//
+// Fills the recommendation gap for brand-new students who have zero
+// submissions + zero mastery rows. BKT can't help until they've actually
+// submitted code, so without this they'd all get the same "most popular"
+// course (C++ Cơ bản). With this, the recommender falls back to matching
+// the student's declared goals against course domains, giving a
+// personalised first-hour experience the academic board will probe.
+//
+// `goals` is a JSON string[] drawn from a fixed vocabulary (see
+// apps/api-core/src/modules/onboarding/goals.ts):
+//   - cpp-foundation      (C++ nền tảng)
+//   - python-basics       (Python cơ bản)
+//   - web-dev             (HTML/CSS/JS)
+//   - data-analysis       (Data + pandas)
+//   - algorithms          (Thuật toán / phỏng vấn)
+//   - theory-foundation   (SE / Mạng / CSDL)
+//
+// `level` / `weeklyHours` are stored as short strings rather than enums so
+// the vocabulary can grow without another Postgres enum migration.
+
+model OnboardingProfile {
+  userId          String   @id @map("user_id") @db.Uuid
+  goals           Json     // string[] — goal slugs, 1-3 items
+  level           String   // 'novice' | 'learning-basics' | 'intermediate'
+  weeklyHours     String   @map("weekly_hours") // '<2' | '2-5' | '5-10' | '10+'
+  knownLanguages  Json     @map("known_languages") // string[], may be empty
+  completedAt     DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding_profiles")
 }
 
 // -----------------------------------------------------------------------------
