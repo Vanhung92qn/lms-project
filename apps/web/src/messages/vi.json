@@ -101,6 +101,13 @@
       "strengths": "Bạn đang mạnh ở",
       "weaknesses": "Cần luyện thêm",
       "load_failed": "Chưa tải được dữ liệu kỹ năng."
+    },
+    "recommendations": {
+      "title": "Có thể bạn sẽ thích",
+      "subtitle": "Dựa trên kiến thức bạn đã nắm vững",
+      "popular_pick": "Được nhiều học viên chọn",
+      "free": "Miễn phí",
+      "view": "Xem chi tiết"
     }
   },
   "tutor": {
@@ -234,6 +241,7 @@
       "publish": "Xuất bản",
       "unpublish": "Thu hồi",
       "publish_failed": "Thao tác thất bại.",
+      "view_analytics": "Xem thống kê",
       "curriculum": "Chương trình học",
       "no_modules": "Chưa có chương nào.",
       "no_lessons": "Chưa có bài học.",
@@ -328,6 +336,60 @@
         "rejected": "Từ chối",
         "cancelled": "Đã huỷ"
       }
+    },
+    "overview": {
+      "title": "Tổng quan hệ thống",
+      "subtitle": "Chỉ số sức khoẻ hệ thống + doanh thu + engagement.",
+      "admin_only": "Chỉ admin có quyền xem.",
+      "users_total": "Tổng số user",
+      "users_breakdown": "{active} active · {locked} khoá",
+      "courses_published": "Khoá đã xuất bản",
+      "courses_breakdown": "{total} tổng · {free} free · {paid} paid",
+      "submissions_total": "Tổng số submit",
+      "submissions_breakdown": "{ac} AC ({pct}%) · 7 ngày: {last7d}",
+      "revenue_total": "Doanh thu",
+      "revenue_breakdown": "{count} giao dịch · {pending} chờ duyệt",
+      "roles_title": "Phân bố vai trò",
+      "wallet_title": "Số dư ví học viên",
+      "wallet_caption": "Tổng tiền đang giữ hộ — số này phải hoàn trả nếu user refund toàn bộ."
+    },
+    "users": {
+      "title": "Quản lý người dùng",
+      "subtitle": "Tìm kiếm, khoá / mở khoá tài khoản học viên + giảng viên.",
+      "admin_only": "Chỉ admin có quyền xem.",
+      "search_placeholder": "Tìm theo email hoặc tên…",
+      "all_roles": "Tất cả vai trò",
+      "all_statuses": "Tất cả trạng thái",
+      "empty": "Không tìm thấy user nào.",
+      "col_user": "User",
+      "col_roles": "Vai trò",
+      "col_balance": "Số dư",
+      "col_status": "Trạng thái",
+      "col_joined": "Tham gia",
+      "col_actions": "Hành động",
+      "lock": "Khoá",
+      "unlock": "Mở khoá",
+      "cannot_lock_admin": "Không thể khoá tài khoản admin khác",
+      "confirm_lock": "Khoá tài khoản {email}? User sẽ mất truy cập ngay lập tức."
+    }
+  },
+  "teacher": {
+    "analytics": {
+      "title": "Thống kê khoá học",
+      "subtitle": "Số liệu tổng hợp về engagement và khái niệm học viên đang yếu.",
+      "back_to_course": "Quay lại khoá học",
+      "enrolments": "Học viên",
+      "submitters": "Đã submit",
+      "submissions": "Lượt submit",
+      "ac_rate": "Tỷ lệ AC",
+      "per_lesson_title": "Theo từng bài",
+      "per_lesson_empty": "Chưa có bài nào có submit.",
+      "col_lesson": "Bài học",
+      "col_submissions": "Submit",
+      "col_ac": "AC",
+      "col_ac_rate": "Tỷ lệ AC",
+      "col_concepts": "Khái niệm",
+      "weakest_title": "Khái niệm yếu nhất"
     }
   }
 }

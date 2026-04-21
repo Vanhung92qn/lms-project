@@ -101,6 +101,13 @@
       "strengths": "Strongest in",
       "weaknesses": "Needs more practice",
       "load_failed": "Could not load mastery data."
+    },
+    "recommendations": {
+      "title": "You might like",
+      "subtitle": "Based on what you've mastered",
+      "popular_pick": "Popular pick",
+      "free": "Free",
+      "view": "View"
     }
   },
   "tutor": {
@@ -234,6 +241,7 @@
       "publish": "Publish",
       "unpublish": "Unpublish",
       "publish_failed": "Action failed.",
+      "view_analytics": "View analytics",
       "curriculum": "Curriculum",
       "no_modules": "No modules yet.",
       "no_lessons": "No lessons yet.",
@@ -328,6 +336,60 @@
         "rejected": "Rejected",
         "cancelled": "Cancelled"
       }
+    },
+    "overview": {
+      "title": "Platform overview",
+      "subtitle": "Health, revenue and engagement at a glance.",
+      "admin_only": "Only admins can view this page.",
+      "users_total": "Total users",
+      "users_breakdown": "{active} active · {locked} locked",
+      "courses_published": "Published courses",
+      "courses_breakdown": "{total} total · {free} free · {paid} paid",
+      "submissions_total": "Total submissions",
+      "submissions_breakdown": "{ac} AC ({pct}%) · last 7d: {last7d}",
+      "revenue_total": "Revenue",
+      "revenue_breakdown": "{count} topups · {pending} pending",
+      "roles_title": "Users by role",
+      "wallet_title": "Student wallet liability",
+      "wallet_caption": "Total balance currently held — amount owed if every user refunded."
+    },
+    "users": {
+      "title": "User management",
+      "subtitle": "Search, lock / unlock student and teacher accounts.",
+      "admin_only": "Only admins can view this page.",
+      "search_placeholder": "Search by email or name…",
+      "all_roles": "All roles",
+      "all_statuses": "All statuses",
+      "empty": "No users match the filter.",
+      "col_user": "User",
+      "col_roles": "Roles",
+      "col_balance": "Balance",
+      "col_status": "Status",
+      "col_joined": "Joined",
+      "col_actions": "Actions",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "cannot_lock_admin": "Cannot lock another admin account",
+      "confirm_lock": "Lock account {email}? User will lose access immediately."
+    }
+  },
+  "teacher": {
+    "analytics": {
+      "title": "Course analytics",
+      "subtitle": "Aggregate engagement + weakest-concept signals for this course.",
+      "back_to_course": "Back to course",
+      "enrolments": "Enrolments",
+      "submitters": "Submitters",
+      "submissions": "Submissions",
+      "ac_rate": "AC rate",
+      "per_lesson_title": "Per-lesson breakdown",
+      "per_lesson_empty": "No lessons have submissions yet.",
+      "col_lesson": "Lesson",
+      "col_submissions": "Submissions",
+      "col_ac": "AC",
+      "col_ac_rate": "AC rate",
+      "col_concepts": "Concepts",
+      "weakest_title": "Weakest concepts"
     }
   }
 }
