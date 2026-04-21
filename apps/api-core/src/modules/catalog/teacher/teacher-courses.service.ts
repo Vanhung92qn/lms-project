@@ -151,6 +151,119 @@ export class TeacherCoursesService {
     });
   }
 
+  /**
+   * Course-level analytics for the teacher. Returns enrolment + submission
+   * summaries plus knowledge-node rollups so the teacher can see which
+   * concepts are dragging the class down.
+   */
+  async analytics(user: AuthenticatedUser, courseId: string) {
+    await this.assertOwn(user, courseId);
+
+    // Submissions submitted on exercises belonging to this course.
+    const exerciseRows = await this.prisma.exercise.findMany({
+      where: { lesson: { module: { courseId } } },
+      select: { id: true, lessonId: true },
+    });
+    const exerciseIds = exerciseRows.map((e) => e.id);
+
+    const [enrollmentCount, submissionRows, lessonRows] = await Promise.all([
+      this.prisma.enrollment.count({ where: { courseId } }),
+      this.prisma.submission.findMany({
+        where: { exerciseId: { in: exerciseIds } },
+        select: {
+          id: true,
+          userId: true,
+          exerciseId: true,
+          verdict: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.lesson.findMany({
+        where: { module: { courseId } },
+        select: {
+          id: true,
+          title: true,
+          knowledgeTags: {
+            include: { node: { select: { id: true, slug: true, title: true } } },
+          },
+        },
+      }),
+    ]);
+
+    const totalSubmissions = submissionRows.length;
+    const acSubmissions = submissionRows.filter((s) => s.verdict === 'ac').length;
+    const uniqueSubmitters = new Set(submissionRows.map((s) => s.userId)).size;
+    const acRate = totalSubmissions === 0 ? 0 : acSubmissions / totalSubmissions;
+
+    // Per-lesson AC rate (sorted by the most-struggled at the top).
+    const lessonByExercise = new Map(exerciseRows.map((e) => [e.id, e.lessonId]));
+    const perLesson = new Map<string, { total: number; ac: number }>();
+    for (const s of submissionRows) {
+      const lessonId = lessonByExercise.get(s.exerciseId);
+      if (!lessonId) continue;
+      const cur = perLesson.get(lessonId) ?? { total: 0, ac: 0 };
+      cur.total += 1;
+      if (s.verdict === 'ac') cur.ac += 1;
+      perLesson.set(lessonId, cur);
+    }
+
+    const lessonStats = lessonRows
+      .filter((l) => (perLesson.get(l.id)?.total ?? 0) > 0)
+      .map((l) => {
+        const stat = perLesson.get(l.id) ?? { total: 0, ac: 0 };
+        return {
+          lessonId: l.id,
+          lessonTitle: l.title,
+          totalSubmissions: stat.total,
+          acSubmissions: stat.ac,
+          acRate: stat.total === 0 ? 0 : stat.ac / stat.total,
+          knowledgeNodes: l.knowledgeTags.map((t) => t.node.slug),
+        };
+      })
+      .sort((a, b) => a.acRate - b.acRate); // hardest first
+
+    // Weakest concepts across the course: aggregate per-node AC rate.
+    const nodeStats = new Map<
+      string,
+      { slug: string; title: string; total: number; ac: number }
+    >();
+    for (const lesson of lessonRows) {
+      const stat = perLesson.get(lesson.id);
+      if (!stat) continue;
+      for (const tag of lesson.knowledgeTags) {
+        const cur = nodeStats.get(tag.node.id) ?? {
+          slug: tag.node.slug,
+          title: tag.node.title,
+          total: 0,
+          ac: 0,
+        };
+        cur.total += stat.total;
+        cur.ac += stat.ac;
+        nodeStats.set(tag.node.id, cur);
+      }
+    }
+    const weakestConcepts = Array.from(nodeStats.values())
+      .filter((n) => n.total > 0)
+      .map((n) => ({
+        slug: n.slug,
+        title: n.title,
+        totalSubmissions: n.total,
+        acRate: n.ac / n.total,
+      }))
+      .sort((a, b) => a.acRate - b.acRate)
+      .slice(0, 5);
+
+    return {
+      enrollmentCount,
+      uniqueSubmitters,
+      totalSubmissions,
+      acSubmissions,
+      acRate,
+      perLesson: lessonStats,
+      weakestConcepts,
+    };
+  }
+
   async addModule(user: AuthenticatedUser, courseId: string, dto: CreateModuleDto) {
     await this.assertOwn(user, courseId);
     return this.prisma.module.create({
