@@ -161,6 +161,17 @@
       "course_end": "You have finished this course. 🎉",
       "prereq_warning": "The next lesson builds on a concept you may not have mastered yet — consider reviewing first."
     },
+    "code_block": {
+      "copy": "Copy",
+      "copied": "Copied",
+      "explain": "Explain",
+      "close": "Close",
+      "drawer_title": "AI explanation of this code",
+      "drawer_subtitle": "The AI tutor is walking through the snippet below — tokens will appear over 5–20 seconds.",
+      "thinking": "AI is thinking…",
+      "failed": "Could not reach the AI tutor. Try again.",
+      "sign_in_required": "Sign in to use AI explain."
+    },
     "quiz": {
       "title": "Check your understanding",
       "subtitle": "An AI-generated short quiz to confirm you grasped the concepts — you need {threshold}% to complete this lesson.",

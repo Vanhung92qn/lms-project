@@ -161,6 +161,17 @@
       "course_end": "Bạn đã hoàn thành khoá này. 🎉",
       "prereq_warning": "Bài kế có kiến thức phụ thuộc bạn chưa vững — nên ôn lại trước."
     },
+    "code_block": {
+      "copy": "Sao chép",
+      "copied": "Đã chép",
+      "explain": "Giải thích",
+      "close": "Đóng",
+      "drawer_title": "AI giải thích đoạn code",
+      "drawer_subtitle": "AI Tutor đang phân tích đoạn code bên dưới — token sẽ xuất hiện dần trong khoảng 5-20 giây.",
+      "thinking": "AI đang phân tích…",
+      "failed": "Không gọi được AI Tutor. Thử lại sau.",
+      "sign_in_required": "Vui lòng đăng nhập để dùng AI giải thích."
+    },
     "quiz": {
       "title": "Kiểm tra hiểu bài",
       "subtitle": "AI sinh câu hỏi ngắn từ nội dung bài để xác nhận bạn đã nắm kiến thức — cần {threshold}% để hoàn thành.",

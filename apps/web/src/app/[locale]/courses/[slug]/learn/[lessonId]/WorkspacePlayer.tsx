@@ -11,6 +11,7 @@ import { api, ApiError } from '@/lib/api';
 import type { LessonDetail, Submission, Verdict } from '@lms/shared-types';
 import { AITutorPanel } from './AITutorPanel';
 import { LessonQuizPanel } from './LessonQuizPanel';
+import { CodeBlock } from '@/components/lesson/CodeBlock';
 
 // Monaco is a heavy (~2 MB) bundle that imports self-mutating browser
 // globals. Loading it through next/dynamic with ssr:false keeps it out
@@ -159,7 +160,11 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
             {/* Left: theory */}
             <section className="card overflow-y-auto">
               <h1 className="mb-4 text-2xl font-bold tracking-tight text-text">{lesson.title}</h1>
-              <MarkdownBody markdown={lesson.content_markdown} />
+              <MarkdownBody
+                markdown={lesson.content_markdown}
+                lessonId={lessonId}
+                lessonTitle={lesson.title}
+              />
               {lesson.exercise.sample_test_cases.length > 0 ? (
                 <SampleTestCases cases={lesson.exercise.sample_test_cases} />
               ) : null}
@@ -216,7 +221,11 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
           <div className="mx-auto flex max-w-[900px] flex-col gap-4">
             <section className="card">
               <h1 className="mb-4 text-2xl font-bold tracking-tight text-text">{lesson.title}</h1>
-              <MarkdownBody markdown={lesson.content_markdown} />
+              <MarkdownBody
+                markdown={lesson.content_markdown}
+                lessonId={lessonId}
+                lessonTitle={lesson.title}
+              />
             </section>
             <LessonQuizPanel lessonId={lessonId} />
           </div>
@@ -227,7 +236,15 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
 
 // ---------- Markdown renderer ----------
 
-function MarkdownBody({ markdown }: { markdown: string }) {
+function MarkdownBody({
+  markdown,
+  lessonId,
+  lessonTitle,
+}: {
+  markdown: string;
+  lessonId?: string;
+  lessonTitle?: string;
+}) {
   return (
     <div className="prose prose-sm max-w-none text-text">
       <style>{`
@@ -239,15 +256,45 @@ function MarkdownBody({ markdown }: { markdown: string }) {
         .prose ul, .prose ol { margin: 0.6rem 0 0.6rem 1.2rem; color: var(--text-muted); }
         .prose li { margin: 0.2rem 0; }
         .prose strong { color: var(--text-main); font-weight: 600; }
-        .prose code { font-family: 'Fira Code', monospace; font-size: 0.85em;
+        .prose :not(pre) > code { font-family: 'Fira Code', monospace; font-size: 0.85em;
           background: var(--bg-code); border: 1px solid var(--border-color);
           padding: 1px 6px; border-radius: 6px; color: var(--text-main); }
-        .prose pre { background: var(--bg-code); border: 1px solid var(--border-color);
-          padding: 12px 16px; border-radius: 12px; overflow-x: auto; margin: 0.8rem 0; }
-        .prose pre code { background: transparent; border: 0; padding: 0; }
         .prose blockquote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text-muted); margin: 0.6rem 0; }
       `}</style>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Fenced code blocks (``` with or without a language) get intercepted
+          // and rendered through <CodeBlock>, which brings its own <pre>
+          // wrapper + Copy / Giải thích buttons. Inline `code` stays plain.
+          code({ className, children, ...rest }) {
+            const match = /language-([\w-]+)/.exec(className ?? '');
+            if (match) {
+              const raw = String(children).replace(/\n$/, '');
+              return (
+                <CodeBlock
+                  code={raw}
+                  language={match[1] ?? ''}
+                  lessonId={lessonId}
+                  lessonTitle={lessonTitle}
+                />
+              );
+            }
+            return (
+              <code className={className} {...rest}>
+                {children}
+              </code>
+            );
+          },
+          // Suppress the default <pre> wrapper for fenced blocks — CodeBlock
+          // produces its own. Everything else passes through untouched.
+          pre({ children }) {
+            return <>{children}</>;
+          },
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
     </div>
   );
 }
