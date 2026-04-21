@@ -160,6 +160,28 @@
       "loading": "Đang tìm bài kế…",
       "course_end": "Bạn đã hoàn thành khoá này. 🎉",
       "prereq_warning": "Bài kế có kiến thức phụ thuộc bạn chưa vững — nên ôn lại trước."
+    },
+    "quiz": {
+      "title": "Kiểm tra hiểu bài",
+      "subtitle": "AI sinh câu hỏi ngắn từ nội dung bài để xác nhận bạn đã nắm kiến thức — cần {threshold}% để hoàn thành.",
+      "start_cta": "Bắt đầu kiểm tra",
+      "generating": "Đang sinh câu hỏi (tối đa 20s)…",
+      "submit": "Nộp bài",
+      "submitting": "Đang chấm…",
+      "retry": "Làm lại",
+      "score": "Điểm {score}%",
+      "passed": "Đạt",
+      "failed": "Chưa đạt",
+      "need_score": "Cần ≥ {threshold}% để hoàn thành bài",
+      "best_score": "Điểm cao nhất: {score}%",
+      "question_n": "Câu {n}",
+      "correct": "Đúng",
+      "wrong": "Sai",
+      "explanation": "Giải thích",
+      "try_again": "Câu hỏi sẽ giữ nguyên — hãy đọc lại phần lý thuyết rồi thử lại.",
+      "pass_message": "Chính xác! BKT đã ghi nhận — kiến thức bài này được cộng điểm mastery.",
+      "generate_failed": "Không sinh được câu hỏi. Liên hệ giáo viên nếu vẫn không chạy.",
+      "content_too_short": "Bài học chưa đủ nội dung để sinh quiz."
     }
   },
   "catalog": {
