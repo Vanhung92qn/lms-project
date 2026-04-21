@@ -388,3 +388,195 @@ async def tutor_stream(req: TutorRequest) -> StreamingResponse:
             "Connection": "keep-alive",
         },
     )
+
+
+# --- quiz generation (P9.0) -------------------------------------------------
+#
+# One-shot (non-streaming) JSON endpoint that turns a lesson's markdown into
+# a short multiple-choice formative quiz. api-core calls this once per lesson
+# on first "Hoàn thành" click and caches the result in `lesson_quizzes`, so
+# DeepSeek cost stays bounded. We deliberately don't expose Llama here: the
+# 7B Q4 models hallucinate both the question and the "correct" answer too
+# often to use as an assessment source. If DEEPSEEK_API_KEY is missing we
+# return a stub quiz with a `fallback-local` marker so the feature still
+# flows end-to-end in dev.
+
+
+class QuizGenerateRequest(BaseModel):
+    lesson_title: str
+    lesson_content: str = Field(..., description="Markdown source of the lesson")
+    locale: Literal["vi", "en"] = "vi"
+    num_questions: int = Field(default=4, ge=3, le=6)
+
+
+class QuizQuestion(BaseModel):
+    id: str
+    question: str
+    options: list[str]
+    correct_index: int
+    explanation: str
+
+
+class QuizGenerateResponse(BaseModel):
+    questions: list[QuizQuestion]
+    model: str
+    generated_ms: int
+
+
+_QUIZ_SYSTEM_VI = (
+    "Bạn là hệ thống sinh câu hỏi trắc nghiệm giáo dục. Đọc bài học sau và "
+    "sinh CHÍNH XÁC __N__ câu hỏi trắc nghiệm 4 lựa chọn nhằm kiểm tra hiểu "
+    "biết các khái niệm chính của bài.\n\n"
+    "Quy tắc:\n"
+    "- Câu hỏi tiếng Việt, tập trung khái niệm, không hỏi chi tiết vụn vặt.\n"
+    "- Mỗi câu đúng 4 lựa chọn, CHỈ 1 đáp án đúng.\n"
+    "- Kèm giải thích NGẮN (1 câu) cho đáp án đúng.\n"
+    "- Không lặp lại câu hỏi. Không dùng 'tất cả đều đúng'.\n\n"
+    "Trả về DUY NHẤT JSON object theo schema:\n"
+    '{"questions":[{"id":"q1","question":"...","options":["A","B","C","D"],'
+    '"correct_index":0,"explanation":"..."}]}'
+)
+
+_QUIZ_SYSTEM_EN = (
+    "You are an educational multiple-choice quiz generator. Read the lesson "
+    "below and produce EXACTLY __N__ multiple-choice questions that test "
+    "understanding of the core concepts.\n\n"
+    "Rules:\n"
+    "- Questions in English, focus on concepts, not trivia.\n"
+    "- Each question has exactly 4 options, ONLY 1 correct.\n"
+    "- Include a SHORT explanation (1 sentence) for the correct answer.\n"
+    "- Do not repeat questions. Do not use 'all of the above'.\n\n"
+    "Return ONLY a JSON object matching this schema:\n"
+    '{"questions":[{"id":"q1","question":"...","options":["A","B","C","D"],'
+    '"correct_index":0,"explanation":"..."}]}'
+)
+
+
+def _fallback_quiz(n: int, locale: str) -> list[dict]:
+    # Dev/test stub used when DEEPSEEK_API_KEY is not configured. Keeps the
+    # completion flow unblocked on localhost without burning credits.
+    tmpl_vi = {
+        "question": "Câu hỏi mẫu số {i}: Khái niệm chính của bài học này là gì?",
+        "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+        "explanation": "Đây là câu hỏi mẫu (fallback) — hãy cấu hình DEEPSEEK_API_KEY.",
+    }
+    tmpl_en = {
+        "question": "Sample question {i}: What is the main concept of this lesson?",
+        "options": ["Answer A", "Answer B", "Answer C", "Answer D"],
+        "explanation": "This is a fallback sample — configure DEEPSEEK_API_KEY.",
+    }
+    tmpl = tmpl_vi if locale == "vi" else tmpl_en
+    return [
+        {
+            "id": f"q{i+1}",
+            "question": tmpl["question"].format(i=i + 1),
+            "options": tmpl["options"],
+            "correct_index": 0,
+            "explanation": tmpl["explanation"],
+        }
+        for i in range(n)
+    ]
+
+
+def _validate_quiz_payload(data: dict, n: int) -> list[dict]:
+    """Raise ValueError if the model returned something we can't trust."""
+    if not isinstance(data, dict) or "questions" not in data:
+        raise ValueError("missing `questions` key")
+    qs = data["questions"]
+    if not isinstance(qs, list) or not (3 <= len(qs) <= 6):
+        raise ValueError(f"expected 3-6 questions, got {len(qs) if isinstance(qs, list) else 'non-list'}")
+    cleaned: list[dict] = []
+    for i, q in enumerate(qs):
+        if not isinstance(q, dict):
+            raise ValueError(f"question {i} is not an object")
+        opts = q.get("options") or []
+        if not isinstance(opts, list) or len(opts) != 4:
+            raise ValueError(f"question {i}: need exactly 4 options, got {len(opts)}")
+        ci = q.get("correct_index")
+        if not isinstance(ci, int) or not (0 <= ci <= 3):
+            raise ValueError(f"question {i}: invalid correct_index {ci!r}")
+        cleaned.append(
+            {
+                "id": str(q.get("id") or f"q{i+1}"),
+                "question": str(q.get("question") or "").strip(),
+                "options": [str(o) for o in opts],
+                "correct_index": ci,
+                "explanation": str(q.get("explanation") or "").strip(),
+            }
+        )
+    return cleaned
+
+
+@app.post("/v1/quiz/generate", response_model=QuizGenerateResponse)
+async def quiz_generate(req: QuizGenerateRequest) -> QuizGenerateResponse:
+    started = time.perf_counter()
+
+    if not DEEPSEEK_API_KEY:
+        log.warning("quiz/generate: DEEPSEEK_API_KEY missing — returning fallback stub")
+        elapsed = int((time.perf_counter() - started) * 1000)
+        return QuizGenerateResponse(
+            questions=[QuizQuestion(**q) for q in _fallback_quiz(req.num_questions, req.locale)],
+            model="fallback-local",
+            generated_ms=elapsed,
+        )
+
+    system = (_QUIZ_SYSTEM_VI if req.locale == "vi" else _QUIZ_SYSTEM_EN).replace(
+        "__N__", str(req.num_questions)
+    )
+    # Cap lesson content at 6 KB — DeepSeek accepts more but we'd rather keep
+    # latency + cost predictable. Most of our lessons are ≤ 3 KB.
+    lesson = req.lesson_content[:6144]
+    user_msg = (
+        f"Tiêu đề: {req.lesson_title}\n\nNội dung bài học:\n{lesson}"
+        if req.locale == "vi"
+        else f"Title: {req.lesson_title}\n\nLesson content:\n{lesson}"
+    )
+
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        "temperature": 0.4,
+        "response_format": {"type": "json_object"},
+        "stream": False,
+    }
+    try:
+        timeout = httpx.Timeout(connect=5.0, read=60.0, write=5.0, pool=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(
+                f"{DEEPSEEK_BASE_URL}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+    except httpx.HTTPError as e:
+        log.exception("quiz/generate deepseek http error")
+        from fastapi import HTTPException
+        raise HTTPException(502, detail={"code": "upstream_error", "message": str(e)[:200]})
+
+    if resp.status_code != 200:
+        log.warning("quiz/generate deepseek %d: %s", resp.status_code, resp.text[:300])
+        from fastapi import HTTPException
+        raise HTTPException(502, detail={"code": "upstream_error", "message": f"deepseek {resp.status_code}"})
+
+    try:
+        body = resp.json()
+        content = body["choices"][0]["message"]["content"]
+        data = json.loads(content)
+        questions = _validate_quiz_payload(data, req.num_questions)
+    except (KeyError, json.JSONDecodeError, ValueError) as e:
+        log.warning("quiz/generate parse error: %s", e)
+        from fastapi import HTTPException
+        raise HTTPException(502, detail={"code": "invalid_model_output", "message": str(e)[:200]})
+
+    elapsed = int((time.perf_counter() - started) * 1000)
+    log.info("quiz/generate ok title=%r questions=%d ms=%d", req.lesson_title, len(questions), elapsed)
+    return QuizGenerateResponse(
+        questions=[QuizQuestion(**q) for q in questions],
+        model=DEEPSEEK_MODEL,
+        generated_ms=elapsed,
+    )

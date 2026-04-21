@@ -93,32 +93,53 @@ async def rebuild_mastery(user_id: str) -> dict[str, Any]:
         raise HTTPException(503, detail={"code": "db_unavailable"})
 
     async with _pool.acquire() as conn:
-        # 1) Pull every submission the user has made, joined with the
-        #    knowledge nodes attached to each lesson. One row per
-        #    (submission, node) pair; a submission on a lesson tagged with
-        #    2 nodes produces 2 rows and updates both node scores.
+        # 1) Pull every *observation* — both AC/WA code submissions and
+        #    passed/failed quiz attempts — joined with the knowledge nodes
+        #    attached to each lesson. One row per (observation, node) pair;
+        #    an observation on a lesson tagged with 2 nodes produces 2 rows
+        #    and updates both node scores.
+        #
+        #    Code submissions are the strong signal (coding proves mastery);
+        #    quiz attempts (P9.0) are weaker but cover non-code lessons.
+        #    BKT treats both as a binary passed/failed observation — the
+        #    update equation is the same either way.
         rows = await conn.fetch(
             """
-            SELECT s.id, s.verdict, s.created_at, kn.id AS node_id, kn.slug AS node_slug
-              FROM submissions s
-              JOIN exercises e              ON e.id = s.exercise_id
-              JOIN lessons l                ON l.id = e.lesson_id
-              JOIN lesson_knowledge_nodes l_kn ON l_kn.lesson_id = l.id
-              JOIN knowledge_nodes kn       ON kn.id = l_kn.node_id
-             WHERE s.user_id = $1
-             ORDER BY s.created_at ASC
+            SELECT created_at, node_id, passed
+              FROM (
+                SELECT s.created_at              AS created_at,
+                       kn.id                     AS node_id,
+                       (s.verdict = 'ac')        AS passed
+                  FROM submissions s
+                  JOIN exercises e              ON e.id = s.exercise_id
+                  JOIN lessons l                ON l.id = e.lesson_id
+                  JOIN lesson_knowledge_nodes l_kn ON l_kn.lesson_id = l.id
+                  JOIN knowledge_nodes kn       ON kn.id = l_kn.node_id
+                 WHERE s.user_id = $1
+
+                UNION ALL
+
+                SELECT qa.attempted_at           AS created_at,
+                       kn.id                     AS node_id,
+                       qa.passed                 AS passed
+                  FROM quiz_attempts qa
+                  JOIN lessons l                ON l.id = qa.lesson_id
+                  JOIN lesson_knowledge_nodes l_kn ON l_kn.lesson_id = l.id
+                  JOIN knowledge_nodes kn       ON kn.id = l_kn.node_id
+                 WHERE qa.user_id = $1
+              ) AS observations
+             ORDER BY created_at ASC
             """,
             user_id,
         )
 
         if not rows:
-            return {"user_id": user_id, "updated_nodes": 0, "reason": "no_tagged_submissions"}
+            return {"user_id": user_id, "updated_nodes": 0, "reason": "no_tagged_observations"}
 
         # 2) Group observations by node and run BKT forward.
         per_node: dict[str, list[bool]] = {}
         for r in rows:
-            passed = (r["verdict"] == "ac")
-            per_node.setdefault(r["node_id"], []).append(passed)
+            per_node.setdefault(r["node_id"], []).append(bool(r["passed"]))
 
         updated_nodes = []
         for node_id, observations in per_node.items():

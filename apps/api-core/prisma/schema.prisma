@@ -57,6 +57,7 @@ model User {
   walletTopups       WalletTopup[]  @relation("UserTopups")
   approvedTopups     WalletTopup[]  @relation("AdminApprovedTopups")
   entitlements       Entitlement[]
+  quizAttempts       QuizAttempt[]
 
   @@index([status])
   @@map("users")
@@ -162,6 +163,8 @@ model Lesson {
   module          Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   exercise        Exercise?
   knowledgeTags   LessonKnowledgeNode[]
+  quiz            LessonQuiz?
+  quizAttempts    QuizAttempt[]
 
   @@unique([moduleId, sortOrder])
   @@index([moduleId])
@@ -252,6 +255,49 @@ model SubmissionTestResult {
   @@id([submissionId, testCaseId])
   @@index([submissionId])
   @@map("submission_test_results")
+}
+
+// -----------------------------------------------------------------------------
+// Formative quiz for non-code lessons (P9.0).
+//
+// `lesson_quizzes` caches a DeepSeek-generated multiple-choice quiz per
+// lesson; `questions` is a JSON array of { id, question, options[],
+// correct_index, explanation }. The quiz is generated once per lesson and
+// reused for every attempt — teachers may regenerate via admin action.
+//
+// `quiz_attempts` is one row per submission of a quiz. `score` is 0–100,
+// `passed` is score >= pass threshold (70). The data-science mastery
+// rebuild treats each passed/failed attempt as an observation on every
+// knowledge node tagged to the lesson, the same signal shape as a code
+// submission's verdict.
+// -----------------------------------------------------------------------------
+
+model LessonQuiz {
+  lessonId    String   @id @map("lesson_id") @db.Uuid
+  questions   Json     // Array<{ id, question, options[4], correct_index, explanation }>
+  generatedAt DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+  model       String   // "deepseek-chat" | "fallback-local" | manual marker
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("lesson_quizzes")
+}
+
+model QuizAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  lessonId     String   @map("lesson_id") @db.Uuid
+  answers      Json     // Array<{ question_id, selected_index }>
+  score        Int      // 0..100
+  passed       Boolean
+  attemptedAt  DateTime @default(now()) @map("attempted_at") @db.Timestamptz(6)
+
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson       Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lessonId])
+  @@index([lessonId, passed])
+  @@map("quiz_attempts")
 }
 
 // -----------------------------------------------------------------------------

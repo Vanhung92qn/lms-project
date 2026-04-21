@@ -10,6 +10,7 @@ import { useSession } from '@/lib/session';
 import { api, ApiError } from '@/lib/api';
 import type { LessonDetail, Submission, Verdict } from '@lms/shared-types';
 import { AITutorPanel } from './AITutorPanel';
+import { LessonQuizPanel } from './LessonQuizPanel';
 
 // Monaco is a heavy (~2 MB) bundle that imports self-mutating browser
 // globals. Loading it through next/dynamic with ssr:false keeps it out
@@ -153,24 +154,24 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:h-[calc(100vh-8rem)]">
-          {/* Left: theory */}
-          <section className="card overflow-y-auto">
-            <h1 className="mb-4 text-2xl font-bold tracking-tight text-text">{lesson.title}</h1>
-            <MarkdownBody markdown={lesson.content_markdown} />
-            {lesson.exercise && lesson.exercise.sample_test_cases.length > 0 ? (
-              <SampleTestCases cases={lesson.exercise.sample_test_cases} />
-            ) : null}
-          </section>
+        {lesson.exercise ? (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:h-[calc(100vh-8rem)]">
+            {/* Left: theory */}
+            <section className="card overflow-y-auto">
+              <h1 className="mb-4 text-2xl font-bold tracking-tight text-text">{lesson.title}</h1>
+              <MarkdownBody markdown={lesson.content_markdown} />
+              {lesson.exercise.sample_test_cases.length > 0 ? (
+                <SampleTestCases cases={lesson.exercise.sample_test_cases} />
+              ) : null}
+            </section>
 
-          {/* Right: editor + terminal */}
-          <section className="grid grid-rows-[1fr_320px] gap-4 min-h-[60vh]">
-            <div className="card flex flex-col overflow-hidden p-0">
-              <div className="flex items-center justify-between border-b border-border bg-code px-4 py-2">
-                <span className="font-mono text-xs text-text-muted">
-                  {lesson.exercise ? `main.${langExt(lesson.exercise.language)}` : 'notes.md'}
-                </span>
-                {lesson.exercise ? (
+            {/* Right: editor + terminal */}
+            <section className="grid grid-rows-[1fr_320px] gap-4 min-h-[60vh]">
+              <div className="card flex flex-col overflow-hidden p-0">
+                <div className="flex items-center justify-between border-b border-border bg-code px-4 py-2">
+                  <span className="font-mono text-xs text-text-muted">
+                    main.{langExt(lesson.exercise.language)}
+                  </span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -188,34 +189,38 @@ export function WorkspacePlayer({ slug, lessonId }: { slug: string; lessonId: st
                       {submitting ? '…' : `${t('submit')} ⌘↵`}
                     </button>
                   </div>
-                ) : null}
-              </div>
-              <div className="min-h-0 flex-1">
-                {lesson.exercise ? (
+                </div>
+                <div className="min-h-0 flex-1">
                   <MonacoEditor
                     value={source}
                     onChange={setSource}
                     language={lesson.exercise.language}
                     onSubmit={onSubmit}
                   />
-                ) : (
-                  <div className="grid h-full place-items-center px-6 text-center text-sm text-text-muted">
-                    {t('no_exercise')}
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
-            <BottomPanel
-              submission={submission}
-              error={submitError}
-              loading={submitting}
-              sampleCases={lesson.exercise?.sample_test_cases ?? []}
-              lessonTitle={lesson.title}
-              lessonId={lessonId}
-              source={source}
-            />
-          </section>
-        </div>
+              <BottomPanel
+                submission={submission}
+                error={submitError}
+                loading={submitting}
+                sampleCases={lesson.exercise.sample_test_cases}
+                lessonTitle={lesson.title}
+                lessonId={lessonId}
+                source={source}
+              />
+            </section>
+          </div>
+        ) : (
+          /* Non-code (markdown-only) lesson — theory on top, AI-generated
+             formative quiz below serves as the completion gate. */
+          <div className="mx-auto flex max-w-[900px] flex-col gap-4">
+            <section className="card">
+              <h1 className="mb-4 text-2xl font-bold tracking-tight text-text">{lesson.title}</h1>
+              <MarkdownBody markdown={lesson.content_markdown} />
+            </section>
+            <LessonQuizPanel lessonId={lessonId} />
+          </div>
+        )}
       </main>
   );
 }

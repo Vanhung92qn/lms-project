@@ -395,4 +395,43 @@ export const api = {
         headers: authHeaders(token),
       }),
   },
+
+  // Lesson formative quiz (P9.0) — non-code lessons use the quiz as a
+  // completion gate. `get` triggers generation on first call, caches
+  // thereafter; the returned payload is student-safe (no correct index).
+  quiz: {
+    get: (token: string, lessonId: string) =>
+      request<{
+        lesson_id: string;
+        generated_at: string;
+        model: string;
+        pass_threshold: number;
+        questions: Array<{ id: string; question: string; options: string[] }>;
+        attempts: Array<{ id: string; score: number; passed: boolean; attempted_at: string }>;
+        best_score: number | null;
+      }>(`/lessons/${lessonId}/quiz`, { headers: authHeaders(token) }),
+    attempt: (
+      token: string,
+      lessonId: string,
+      answers: Array<{ question_id: string; selected_index: number }>,
+    ) =>
+      request<{
+        attempt_id: string;
+        score: number;
+        passed: boolean;
+        pass_threshold: number;
+        details: Array<{
+          question_id: string;
+          selected_index: number;
+          correct_index: number;
+          correct: boolean;
+          explanation: string;
+        }>;
+        fired_mastery_rebuild: boolean;
+      }>(`/lessons/${lessonId}/quiz/attempts`, {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+        headers: authHeaders(token),
+      }),
+  },
 };
