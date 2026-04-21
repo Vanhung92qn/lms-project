@@ -63,6 +63,23 @@ export function AdminSidebar() {
             );
           })}
         </ul>
+
+        {/* Escape hatch — one click back to the main site so admin / teacher
+            doesn't feel trapped in the data-only shell. */}
+        <div className="mt-6 border-t border-border pt-4">
+          <Link
+            href="/"
+            className="block rounded-box px-3 py-2 text-sm text-text-muted transition-colors hover:bg-code hover:text-text"
+          >
+            ← {t('back_to_site')}
+          </Link>
+          <Link
+            href={'/dashboard' as never}
+            className="block rounded-box px-3 py-2 text-sm text-text-muted transition-colors hover:bg-code hover:text-text"
+          >
+            {t('student_dashboard')}
+          </Link>
+        </div>
       </nav>
 
       {user ? (

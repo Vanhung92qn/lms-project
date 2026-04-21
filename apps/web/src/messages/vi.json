@@ -213,7 +213,9 @@
       "topups": "Duyệt nạp tiền",
       "users": "Người dùng",
       "metrics": "Thống kê",
-      "logout": "Đăng xuất"
+      "logout": "Đăng xuất",
+      "back_to_site": "Về trang chính",
+      "student_dashboard": "Bảng điều khiển học viên"
     },
     "new_course": {
       "title": "Khoá học mới",

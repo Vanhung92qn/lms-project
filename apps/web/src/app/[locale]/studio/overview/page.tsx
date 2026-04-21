@@ -2,31 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { useSession } from '@/lib/session';
 import { api, ApiError } from '@/lib/api';
 
 type Metrics = Awaited<ReturnType<typeof api.admin.metrics>>;
 
 /**
- * Admin overview — platform health in one glance. Five card groups:
- *   - Users (total + by role + locked)
- *   - Courses (published/draft, free/paid)
- *   - Engagement (submissions total + AC + last 7d)
- *   - Revenue (approved topups total)
- *   - Liability (sum of all student wallet balances — what we owe if everyone refunded)
+ * Admin overview — platform health in one glance. AdminLayout is applied
+ * by the parent studio/layout.tsx, not here.
  */
 export default function AdminOverviewPage() {
   const { user, isLoading } = useSession();
-  return (
-    <AdminLayout>
-      {isLoading ? null : !user?.roles.includes('admin') ? (
-        <ForbiddenState />
-      ) : (
-        <OverviewCards />
-      )}
-    </AdminLayout>
-  );
+  if (isLoading) return null;
+  if (!user?.roles.includes('admin')) return <ForbiddenState />;
+  return <OverviewCards />;
 }
 
 function ForbiddenState() {

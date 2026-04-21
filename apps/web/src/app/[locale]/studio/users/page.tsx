@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { useSession } from '@/lib/session';
 import { api, ApiError } from '@/lib/api';
 
@@ -11,24 +10,14 @@ type Status = 'active' | 'locked' | 'pending';
 type Role = 'student' | 'teacher' | 'admin' | 'ai_engine';
 
 /**
- * Admin user-management console.
- *   - Search by email / display name.
- *   - Filter by role / status.
- *   - Lock or unlock with one click. Locking also revokes every active
- *     refresh token on the server side so the session can't outlive the
- *     block.
+ * Admin user-management console. AdminLayout comes from the parent
+ * studio/layout.tsx, not this page — wrapping again doubles the sidebar.
  */
 export default function AdminUsersPage() {
   const { user, isLoading } = useSession();
-  return (
-    <AdminLayout>
-      {isLoading ? null : !user?.roles.includes('admin') ? (
-        <ForbiddenState />
-      ) : (
-        <UsersConsole />
-      )}
-    </AdminLayout>
-  );
+  if (isLoading) return null;
+  if (!user?.roles.includes('admin')) return <ForbiddenState />;
+  return <UsersConsole />;
 }
 
 function ForbiddenState() {
