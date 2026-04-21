@@ -54,6 +54,15 @@ export class KnowledgeController {
     return this.svc.listMastery(user.id);
   }
 
+  /** Student-scoped: content-based course recommendations. */
+  @Get('me/recommendations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Course recommendations for the current user' })
+  mineRecommendations(@CurrentUser() user: AuthenticatedUser) {
+    return this.svc.recommendCourses(user.id);
+  }
+
   /** Public — current knowledge-node slugs tagged on a lesson. Used by
    * the Studio editor to pre-fill the picker; exposed publicly because
    * it only leaks concept metadata, not enrolment state. */

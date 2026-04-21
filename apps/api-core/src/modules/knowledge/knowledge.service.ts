@@ -80,6 +80,147 @@ export class KnowledgeService {
     }));
   }
 
+  /**
+   * Content-based course recommendations (P7). Strategy:
+   *   1. If the student has mastery rows, pick their top-3 strongest
+   *      nodes. Recommend published courses whose lessons are tagged
+   *      with those nodes (domain overlap with their strengths).
+   *   2. If the student has no mastery yet, fall back to the most-
+   *      enrolled published courses — a cold-start "popular picks".
+   *   3. Always exclude courses the student is already enrolled in.
+   * True collaborative filtering (scikit-surprise nightly cron) lands
+   * in P7+ when we have enough signal.
+   */
+  async recommendCourses(
+    userId: string,
+    limit = 3,
+  ): Promise<
+    Array<{
+      id: string;
+      slug: string;
+      title: string;
+      description: string | null;
+      pricingModel: 'free' | 'paid';
+      priceCents: number | null;
+      matchedNodes: string[];
+    }>
+  > {
+    const enrolled = await this.prisma.enrollment.findMany({
+      where: { userId },
+      select: { courseId: true },
+    });
+    const enrolledIds = new Set(enrolled.map((e) => e.courseId));
+
+    const mastery = await this.prisma.userMastery.findMany({
+      where: { userId },
+      orderBy: { score: 'desc' },
+      take: 3,
+      include: { node: { select: { slug: true, title: true } } },
+    });
+
+    if (mastery.length === 0) {
+      const popular = await this.prisma.course.findMany({
+        where: {
+          status: 'published',
+          ...(enrolledIds.size > 0 ? { id: { notIn: Array.from(enrolledIds) } } : {}),
+        },
+        orderBy: [{ enrollments: { _count: 'desc' } }, { publishedAt: 'desc' }],
+        take: limit,
+      });
+      return popular.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        title: c.title,
+        description: c.description,
+        pricingModel: c.pricingModel,
+        priceCents: c.priceCents,
+        matchedNodes: [],
+      }));
+    }
+
+    const nodeIds = mastery.map((m) => m.nodeId);
+    const strongSlugs = new Map(mastery.map((m) => [m.nodeId, m.node.slug]));
+
+    const tagRows = await this.prisma.lessonKnowledgeNode.findMany({
+      where: { nodeId: { in: nodeIds } },
+      select: {
+        nodeId: true,
+        lesson: {
+          select: {
+            module: {
+              select: {
+                course: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    title: true,
+                    description: true,
+                    status: true,
+                    pricingModel: true,
+                    priceCents: true,
+                    publishedAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const byCourse = new Map<
+      string,
+      {
+        id: string;
+        slug: string;
+        title: string;
+        description: string | null;
+        pricingModel: 'free' | 'paid';
+        priceCents: number | null;
+        publishedAt: Date | null;
+        score: number;
+        matchedNodes: Set<string>;
+      }
+    >();
+
+    for (const row of tagRows) {
+      const c = row.lesson.module.course;
+      if (c.status !== 'published') continue;
+      if (enrolledIds.has(c.id)) continue;
+      const entry = byCourse.get(c.id) ?? {
+        id: c.id,
+        slug: c.slug,
+        title: c.title,
+        description: c.description,
+        pricingModel: c.pricingModel,
+        priceCents: c.priceCents,
+        publishedAt: c.publishedAt,
+        score: 0,
+        matchedNodes: new Set<string>(),
+      };
+      entry.score += 1;
+      const slug = strongSlugs.get(row.nodeId);
+      if (slug) entry.matchedNodes.add(slug);
+      byCourse.set(c.id, entry);
+    }
+
+    return Array.from(byCourse.values())
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
+      })
+      .slice(0, limit)
+      .map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        title: c.title,
+        description: c.description,
+        pricingModel: c.pricingModel,
+        priceCents: c.priceCents,
+        matchedNodes: Array.from(c.matchedNodes),
+      }));
+  }
+
   /** Return the current node slugs tagged on a lesson. Public because
    * it only exposes knowledge metadata, not enrolment state — the
    * Studio editor calls it to pre-fill the picker, and the lesson
