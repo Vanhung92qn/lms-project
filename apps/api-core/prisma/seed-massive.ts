@@ -95,6 +95,10 @@ interface CourseSpec {
   nodes: string[];
   pricingModel: 'free' | 'paid';
   priceVnd?: number;
+  // Mark every exercise in this course as a `challenge` so it gets pulled
+  // into the future /arena leaderboard zone. Hands-on advanced / DSA /
+  // interview-style courses qualify; intro courses stay relaxed.
+  challenge?: boolean;
   modules: Array<{
     title: string;
     lessons: string[]; // topic keywords, one per lesson
@@ -176,6 +180,7 @@ const COURSES: CourseSpec[] = [
     language: 'cpp',
     pricingModel: 'paid',
     priceVnd: 299_000,
+    challenge: true,
     nodes: ['pointers', 'recursion', 'oop-basics', 'oop-inheritance', 'arrays', 'strings', 'ds-stack-queue'],
     modules: [
       {
@@ -745,6 +750,7 @@ const COURSES: CourseSpec[] = [
     language: 'cpp',
     pricingModel: 'paid',
     priceVnd: 299_000,
+    challenge: true,
     nodes: ['ds-stack-queue', 'arrays', 'recursion', 'algo-sorting', 'algo-searching'],
     modules: [
       {
@@ -774,6 +780,7 @@ const COURSES: CourseSpec[] = [
     language: 'cpp',
     pricingModel: 'paid',
     priceVnd: 399_000,
+    challenge: true,
     nodes: ['arrays', 'strings', 'algo-sorting', 'algo-searching', 'recursion', 'ds-stack-queue'],
     modules: [
       {
@@ -1182,6 +1189,7 @@ async function seedCourses(teacherId: string): Promise<SeededExercise[]> {
               language: spec.language,
               starterCode: placeholderSource(spec.language, 0),
               solutionCode: placeholderSource(spec.language, 0),
+              isChallenge: spec.challenge ?? false,
               testCases: {
                 create: [
                   { input: '', expectedOutput: 'demo', isSample: true, weight: 1 },
@@ -1414,16 +1422,30 @@ async function seedMastery(students: StudentRow[]): Promise<void> {
 
 async function wipePrevious(): Promise<void> {
   console.warn('[massive] --force: wiping previous massive seed');
-  // Order matters: courses reference the demo teacher via teacher_id, so
-  // wipe courses first (cascades modules/lessons/exercises/submissions via
-  // onDelete: Cascade), then users (cascades enrolments, mastery, etc).
+  // Order matters — two FK gotchas to navigate:
+  //   1. courses own exercises which own test_cases; test_cases have
+  //      submission_test_results referencing them with RESTRICT (no
+  //      cascade). So we first delete any submissions against demo
+  //      exercises, which cascades submission_test_results away, clearing
+  //      the path for the course-level cascade delete.
+  //   2. courses reference the demo teacher via teacher_id — wipe
+  //      courses before users, else the teacher delete would fail FK.
+  const { count: submissionCount } = await prisma.submission.deleteMany({
+    where: {
+      exercise: {
+        lesson: { module: { course: { slug: { startsWith: 'demo-' } } } },
+      },
+    },
+  });
   const { count: courseCount } = await prisma.course.deleteMany({
     where: { slug: { startsWith: 'demo-' } },
   });
   const { count: userCount } = await prisma.user.deleteMany({
     where: { email: { endsWith: '@demo.khohoc.online' } },
   });
-  console.warn(`[massive] wiped ${courseCount} courses + ${userCount} users`);
+  console.warn(
+    `[massive] wiped ${submissionCount} submissions + ${courseCount} courses + ${userCount} users`,
+  );
 }
 
 async function main() {

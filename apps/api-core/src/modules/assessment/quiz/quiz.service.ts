@@ -11,9 +11,17 @@ import type { AuthenticatedUser } from '../../iam/auth/auth.types';
 import { QuizAiClient } from './quiz-ai.client';
 import type { QuizAttemptDto } from './dto/attempt.dto';
 
-// Threshold for "passed" on the formative quiz. Same number we use in UI
-// copy ("≥ 70% để hoàn thành bài"). Tuned once, referenced everywhere.
-const PASS_THRESHOLD = 70;
+// Threshold for a quiz attempt to count as a *mastery signal* for the BKT
+// engine. This is NOT a gate any more — completion is granted on every
+// attempt (and on the plain "Đánh dấu hoàn thành" button). The threshold
+// is purely a signal-quality filter: if the student got less than half
+// right we don't want that noise feeding the knowledge graph.
+const PASS_THRESHOLD = 50;
+
+// Default question count for the micro-check. Product decision (2026-04-21):
+// theory lessons should feel like a relaxed "quick check", not a test.
+// Two MCQs is enough to verify the student read the page.
+const DEFAULT_NUM_QUESTIONS = 2;
 
 // Questions are stored as a JSON column. This is the shape we *write* —
 // everything the runtime needs, including the answer key and explanation.
@@ -48,6 +56,9 @@ export interface QuizPayload {
   questions: PublicQuestion[];
   attempts: AttemptSummary[];
   best_score: number | null;
+  // True once the student has either marked the lesson complete OR taken
+  // the quiz at least once. UI checkmarks/CTA swaps key off this.
+  completed: boolean;
 }
 
 export interface AttemptResult {
@@ -63,6 +74,13 @@ export interface AttemptResult {
     explanation: string;
   }>;
   fired_mastery_rebuild: boolean;
+  completed: boolean;
+}
+
+export interface MarkCompleteResult {
+  completed: boolean;
+  method: 'mark' | 'quiz';
+  completed_at: string;
 }
 
 @Injectable()
@@ -98,6 +116,7 @@ export class QuizService {
         lessonTitle: lesson.title,
         lessonContent: lesson.contentMarkdown,
         locale,
+        numQuestions: DEFAULT_NUM_QUESTIONS,
       });
       const stored: StoredQuestion[] = result.questions.map((q, i) => ({
         id: q.id || `q${i + 1}`,
@@ -116,11 +135,16 @@ export class QuizService {
 
     const questions = (quiz.questions as unknown as StoredQuestion[]) ?? [];
 
-    const attemptRows = await this.prisma.quizAttempt.findMany({
-      where: { userId: user.id, lessonId },
-      orderBy: { attemptedAt: 'desc' },
-      take: 10,
-    });
+    const [attemptRows, completion] = await Promise.all([
+      this.prisma.quizAttempt.findMany({
+        where: { userId: user.id, lessonId },
+        orderBy: { attemptedAt: 'desc' },
+        take: 10,
+      }),
+      this.prisma.lessonCompletion.findUnique({
+        where: { userId_lessonId: { userId: user.id, lessonId } },
+      }),
+    ]);
     const bestScore = attemptRows.length ? Math.max(...attemptRows.map((a) => a.score)) : null;
 
     return {
@@ -136,6 +160,35 @@ export class QuizService {
         attempted_at: a.attemptedAt.toISOString(),
       })),
       best_score: bestScore,
+      completed: completion != null,
+    };
+  }
+
+  /**
+   * Mark a lesson complete without taking the quiz. Idempotent — re-clicks
+   * keep the original completedAt and method. Doesn't fire BKT (reading
+   * alone isn't a mastery signal).
+   */
+  async markComplete(user: AuthenticatedUser, lessonId: string): Promise<MarkCompleteResult> {
+    await this.loadLessonOrThrow(lessonId, user);
+    const existing = await this.prisma.lessonCompletion.findUnique({
+      where: { userId_lessonId: { userId: user.id, lessonId } },
+    });
+    if (existing) {
+      return {
+        completed: true,
+        method: existing.method as 'mark' | 'quiz',
+        completed_at: existing.completedAt.toISOString(),
+      };
+    }
+    const row = await this.prisma.lessonCompletion.create({
+      data: { userId: user.id, lessonId, method: 'mark' },
+    });
+    this.log.log(`lesson completion user=${user.id} lesson=${lessonId} method=mark`);
+    return {
+      completed: true,
+      method: 'mark',
+      completed_at: row.completedAt.toISOString(),
     };
   }
 
@@ -184,9 +237,19 @@ export class QuizService {
       },
     });
 
-    // A passing attempt should update BKT mastery — same signal shape as
-    // an AC code submission. We fire-and-forget so a slow data-science
-    // service never delays the user's result screen.
+    // EVERY attempt marks the lesson complete — a student who tried is
+    // engaged, regardless of score. Product decision 2026-04-21: don't
+    // gate completion on a quiz score (bounce rate is worse than noise).
+    await this.prisma.lessonCompletion.upsert({
+      where: { userId_lessonId: { userId: user.id, lessonId } },
+      create: { userId: user.id, lessonId, method: 'quiz' },
+      update: {}, // keep the original completedAt + method on retries
+    });
+
+    // Only a "passing" attempt (≥ PASS_THRESHOLD) updates BKT — low-score
+    // attempts are noisy signal we don't want feeding the knowledge graph.
+    // Fire-and-forget so a slow data-science service never delays the
+    // user's result screen.
     let firedMastery = false;
     if (passed) {
       this.mastery.rebuildForUser(user.id);
@@ -204,6 +267,7 @@ export class QuizService {
       pass_threshold: PASS_THRESHOLD,
       details,
       fired_mastery_rebuild: firedMastery,
+      completed: true,
     };
   }
 

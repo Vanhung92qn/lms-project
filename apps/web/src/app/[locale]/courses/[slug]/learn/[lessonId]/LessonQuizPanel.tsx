@@ -1,14 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { api, ApiError } from '@/lib/api';
 
-// Formative quiz panel (P9.0). Rendered on non-code lessons in place of the
-// Monaco editor. The quiz is DeepSeek-generated on first open, cached per
-// lesson, and a passing attempt (≥70%) fires a BKT mastery rebuild — same
-// signal the code-submission path uses. Failed attempts don't count against
-// the student; they can retake until they pass.
+// Lesson-completion panel for non-code lessons (P9.0, refined 2026-04-21).
+//
+// Product decision: theory lessons should feel like a relaxed read, not a
+// test. "Đánh dấu hoàn thành" is the primary CTA. Below it, a collapsed
+// optional micro-check — 1–2 AI-generated MCQs with NO pass gate, NO
+// score penalty, unlimited retries — so curious students can self-check
+// without friction, and the rest can skip.
+//
+// Anything in this panel that feeds BKT mastery:
+//   · Quiz attempt with score ≥ 50% → yes (strong signal)
+//   · Quiz attempt with score < 50%   → no (noise)
+//   · Mark complete button            → no (reading ≠ mastery)
 
 interface QuizQuestion {
   id: string;
@@ -31,6 +38,7 @@ interface QuizPayload {
   questions: QuizQuestion[];
   attempts: QuizAttemptSummary[];
   best_score: number | null;
+  completed: boolean;
 }
 
 interface AttemptResult {
@@ -46,69 +54,86 @@ interface AttemptResult {
     explanation: string;
   }>;
   fired_mastery_rebuild: boolean;
+  completed: boolean;
 }
 
 export function LessonQuizPanel({ lessonId }: { lessonId: string }) {
-  const t = useTranslations('lesson.quiz');
+  const tQ = useTranslations('lesson.quiz');
+  const tC = useTranslations('lesson.complete');
 
+  const [completed, setCompleted] = useState(false);
+  const [marking, setMarking] = useState(false);
+  const [markError, setMarkError] = useState<string | null>(null);
+
+  const [quizExpanded, setQuizExpanded] = useState(false);
   const [quiz, setQuiz] = useState<QuizPayload | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AttemptResult | null>(null);
 
-  // Load cached quiz (if any) on mount — does NOT trigger generation.
-  useEffect(() => {
-    // We don't want to force-generate on mount (that costs a DeepSeek call
-    // for every lesson view). Instead we peek: if the quiz already exists
-    // in cache, show "Retry" state with attempt history; otherwise leave
-    // the "Start quiz" button as entry point. The GET endpoint does both
-    // generate and fetch, so we treat the *first* click as the generator.
-  }, [lessonId]);
+  // The quiz is generation-heavy (one DeepSeek call), so we never eagerly
+  // load it on render. Clicking "Đánh dấu hoàn thành" or expanding the
+  // optional quiz panel is what kicks off backend work.
 
-  const onStart = async () => {
+  const onMarkComplete = async () => {
+    if (completed || marking) return;
     const token = sessionStorage.getItem('lms-access');
     if (!token) return;
-    setGenerating(true);
-    setError(null);
+    setMarking(true);
+    setMarkError(null);
     try {
-      const data = await api.quiz.get(token, lessonId);
-      setQuiz(data);
-      // Preselect the most-recent pass's answers? We don't store them on
-      // the client, and showing a "fresh quiz" each retake is less
-      // confusing than half-filled UI. Leave selections blank.
-      setSelected({});
-      setResult(null);
+      await api.quiz.markComplete(token, lessonId);
+      setCompleted(true);
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'lesson_content_too_short') {
-        setError(t('content_too_short'));
-      } else {
-        setError(err instanceof ApiError ? err.message : t('generate_failed'));
-      }
+      setMarkError(err instanceof ApiError ? err.message : tC('failed'));
     } finally {
-      setGenerating(false);
+      setMarking(false);
     }
   };
 
-  const onSubmit = async () => {
+  const loadQuiz = async () => {
+    const token = sessionStorage.getItem('lms-access');
+    if (!token) return;
+    setQuizLoading(true);
+    setQuizError(null);
+    try {
+      const data = await api.quiz.get(token, lessonId);
+      setQuiz(data);
+      setCompleted(data.completed);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'lesson_content_too_short') {
+        setQuizError(tQ('content_too_short'));
+      } else {
+        setQuizError(err instanceof ApiError ? err.message : tQ('generate_failed'));
+      }
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const onToggleQuiz = async () => {
+    const next = !quizExpanded;
+    setQuizExpanded(next);
+    if (next && !quiz) await loadQuiz();
+  };
+
+  const onSubmitQuiz = async () => {
     if (!quiz) return;
     const token = sessionStorage.getItem('lms-access');
     if (!token) return;
-    // Require every question answered before allowing submit.
     const answers = quiz.questions.map((q) => ({
       question_id: q.id,
       selected_index: selected[q.id] ?? -1,
     }));
     if (answers.some((a) => a.selected_index < 0)) return;
     setSubmitting(true);
-    setError(null);
+    setQuizError(null);
     try {
       const res = await api.quiz.attempt(token, lessonId, answers);
       setResult(res);
-      // Re-pull the summary so attempts + best_score reflect this attempt
-      // without another round-trip just for stats.
+      setCompleted(true);
       setQuiz({
         ...quiz,
         attempts: [
@@ -121,9 +146,10 @@ export function LessonQuizPanel({ lessonId }: { lessonId: string }) {
           ...quiz.attempts,
         ].slice(0, 10),
         best_score: Math.max(res.score, quiz.best_score ?? 0),
+        completed: true,
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('generate_failed'));
+      setQuizError(err instanceof ApiError ? err.message : tQ('generate_failed'));
     } finally {
       setSubmitting(false);
     }
@@ -134,142 +160,181 @@ export function LessonQuizPanel({ lessonId }: { lessonId: string }) {
     setSelected({});
   };
 
-  // Entry — no quiz loaded yet.
-  if (!quiz) {
-    return (
-      <section className="card">
-        <h2 className="text-xl font-semibold text-text">{t('title')}</h2>
-        <p className="mt-2 text-sm text-text-muted">
-          {t('subtitle', { threshold: 70 })}
-        </p>
-        {error ? <p className="mt-3 text-sm" style={{ color: '#ff6b6b' }}>{error}</p> : null}
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={generating}
-          className="btn mt-4"
-        >
-          {generating ? t('generating') : t('start_cta')}
-        </button>
-      </section>
-    );
-  }
-
-  const allAnswered = quiz.questions.every((q) => selected[q.id] != null);
+  const allAnswered = quiz ? quiz.questions.every((q) => selected[q.id] != null) : false;
 
   return (
-    <section className="card">
-      <header className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold text-text">{t('title')}</h2>
-          <p className="mt-1 text-sm text-text-muted">
-            {t('need_score', { threshold: quiz.pass_threshold })}
-          </p>
-          {quiz.best_score != null ? (
-            <p className="mt-1 text-xs text-text-muted">
-              {t('best_score', { score: quiz.best_score })}
-            </p>
-          ) : null}
-        </div>
-        {result ? (
-          <div
-            className="rounded-pill px-3 py-1 text-xs font-semibold"
-            style={{
-              background: result.passed ? 'rgba(40, 167, 69, 0.15)' : 'rgba(220, 53, 69, 0.15)',
-              color: result.passed ? '#28a745' : '#dc3545',
-            }}
-          >
-            {t('score', { score: result.score })} · {result.passed ? t('passed') : t('failed')}
-          </div>
-        ) : null}
-      </header>
-
-      <ol className="flex flex-col gap-5">
-        {quiz.questions.map((q, idx) => {
-          const detail = result?.details.find((d) => d.question_id === q.id);
-          return (
-            <li key={q.id} className="rounded-box border border-border bg-panel p-4">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-                {t('question_n', { n: idx + 1 })}
+    <section className="flex flex-col gap-4">
+      {/* Primary: mark-complete card */}
+      <div
+        className="card flex flex-col gap-3"
+        style={{
+          borderColor: completed ? 'rgba(40, 167, 69, 0.4)' : undefined,
+          background: completed ? 'rgba(40, 167, 69, 0.06)' : undefined,
+        }}
+      >
+        {completed ? (
+          <>
+            <h2 className="text-xl font-semibold" style={{ color: '#28a745' }}>
+              {tC('done')}
+            </h2>
+            <p className="text-sm text-text-muted">{tC('done_subtitle')}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-text-muted">{tC('helper')}</p>
+            <button
+              type="button"
+              onClick={onMarkComplete}
+              disabled={marking}
+              className="btn self-start"
+            >
+              {marking ? tC('marking') : tC('cta')}
+            </button>
+            {markError ? (
+              <p className="text-xs" style={{ color: '#ff6b6b' }}>
+                {markError}
               </p>
-              <p className="mb-3 text-sm font-medium text-text">{q.question}</p>
-              <div className="flex flex-col gap-2">
-                {q.options.map((opt, optIdx) => {
-                  const isSelected = selected[q.id] === optIdx;
-                  let bg = 'var(--bg-panel)';
-                  let bd = 'var(--border-color)';
-                  let color = 'var(--text-main)';
-                  if (detail) {
-                    // Post-submit styling: highlight correct green, chosen-wrong red.
-                    if (optIdx === detail.correct_index) {
-                      bg = 'rgba(40, 167, 69, 0.12)';
-                      bd = '#28a745';
-                      color = '#28a745';
-                    } else if (optIdx === detail.selected_index) {
-                      bg = 'rgba(220, 53, 69, 0.12)';
-                      bd = '#dc3545';
-                      color = '#dc3545';
-                    }
-                  } else if (isSelected) {
-                    bg = 'rgba(247, 189, 77, 0.1)';
-                    bd = 'var(--accent)';
-                  }
-                  return (
-                    <label
-                      key={optIdx}
-                      className="flex cursor-pointer items-start gap-3 rounded-box px-3 py-2 transition-colors"
-                      style={{ background: bg, border: `1px solid ${bd}`, color }}
-                    >
-                      <input
-                        type="radio"
-                        name={q.id}
-                        disabled={Boolean(detail) || submitting}
-                        checked={isSelected}
-                        onChange={() => setSelected({ ...selected, [q.id]: optIdx })}
-                        className="mt-0.5"
-                      />
-                      <span className="text-sm">{opt}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {detail ? (
-                <p className="mt-3 text-xs text-text-muted">
-                  <span className="font-semibold text-text">{t('explanation')}: </span>
-                  {detail.explanation}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
+            ) : null}
+          </>
+        )}
+      </div>
 
-      {error ? <p className="mt-3 text-sm" style={{ color: '#ff6b6b' }}>{error}</p> : null}
-
-      {!result ? (
+      {/* Secondary: collapsed optional quiz */}
+      <div className="card">
         <button
           type="button"
-          onClick={onSubmit}
-          disabled={!allAnswered || submitting}
-          className="btn mt-5"
+          onClick={onToggleQuiz}
+          className="flex w-full items-start justify-between gap-4 text-left"
         >
-          {submitting ? t('submitting') : t('submit')}
+          <div>
+            <h3 className="text-base font-semibold text-text">{tQ('title')}</h3>
+            <p className="mt-1 text-xs text-text-muted">{tQ('subtitle')}</p>
+            {quiz?.best_score != null ? (
+              <p className="mt-1 text-xs text-text-muted">
+                {tQ('best_score', { score: quiz.best_score })}
+              </p>
+            ) : null}
+          </div>
+          <span className="text-text-muted">{quizExpanded ? '▾' : '▸'}</span>
         </button>
-      ) : result.passed ? (
-        <div
-          className="mt-5 rounded-box p-4 text-sm"
-          style={{ background: 'rgba(40, 167, 69, 0.08)', color: '#28a745' }}
-        >
-          {t('pass_message')}
-        </div>
-      ) : (
-        <div className="mt-5 flex items-center gap-3">
-          <p className="text-sm text-text-muted">{t('try_again')}</p>
-          <button type="button" onClick={onRetry} className="btn btn-secondary">
-            {t('retry')}
-          </button>
-        </div>
-      )}
+
+        {quizExpanded ? (
+          <div className="mt-4">
+            {quizLoading ? (
+              <p className="text-sm text-text-muted">{tQ('generating')}</p>
+            ) : quizError ? (
+              <p className="text-sm" style={{ color: '#ff6b6b' }}>
+                {quizError}
+              </p>
+            ) : quiz ? (
+              <>
+                <ol className="flex flex-col gap-4">
+                  {quiz.questions.map((q, idx) => {
+                    const detail = result?.details.find((d) => d.question_id === q.id);
+                    return (
+                      <li key={q.id} className="rounded-box border border-border bg-panel p-4">
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                          {tQ('question_n', { n: idx + 1 })}
+                        </p>
+                        <p className="mb-3 text-sm font-medium text-text">{q.question}</p>
+                        <div className="flex flex-col gap-2">
+                          {q.options.map((opt, optIdx) => {
+                            const isSelected = selected[q.id] === optIdx;
+                            let bg = 'var(--bg-panel)';
+                            let bd = 'var(--border-color)';
+                            let color = 'var(--text-main)';
+                            if (detail) {
+                              if (optIdx === detail.correct_index) {
+                                bg = 'rgba(40, 167, 69, 0.12)';
+                                bd = '#28a745';
+                                color = '#28a745';
+                              } else if (optIdx === detail.selected_index) {
+                                bg = 'rgba(220, 53, 69, 0.12)';
+                                bd = '#dc3545';
+                                color = '#dc3545';
+                              }
+                            } else if (isSelected) {
+                              bg = 'rgba(247, 189, 77, 0.1)';
+                              bd = 'var(--accent)';
+                            }
+                            return (
+                              <label
+                                key={optIdx}
+                                className="flex cursor-pointer items-start gap-3 rounded-box px-3 py-2 transition-colors"
+                                style={{
+                                  background: bg,
+                                  border: `1px solid ${bd}`,
+                                  color,
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  name={q.id}
+                                  disabled={Boolean(detail) || submitting}
+                                  checked={isSelected}
+                                  onChange={() => setSelected({ ...selected, [q.id]: optIdx })}
+                                  className="mt-0.5"
+                                />
+                                <span className="text-sm">{opt}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {detail ? (
+                          <p className="mt-3 text-xs text-text-muted">
+                            <span className="font-semibold text-text">
+                              {tQ('explanation')}:{' '}
+                            </span>
+                            {detail.explanation}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+
+                {!result ? (
+                  <button
+                    type="button"
+                    onClick={onSubmitQuiz}
+                    disabled={!allAnswered || submitting}
+                    className="btn mt-4"
+                  >
+                    {submitting ? tQ('submitting') : tQ('submit')}
+                  </button>
+                ) : (
+                  <div className="mt-4 flex flex-col gap-3">
+                    <div
+                      className="rounded-box p-3 text-sm"
+                      style={{
+                        background:
+                          result.score >= quiz.pass_threshold
+                            ? 'rgba(40, 167, 69, 0.08)'
+                            : 'rgba(247, 189, 77, 0.08)',
+                        color: result.score >= quiz.pass_threshold ? '#28a745' : 'var(--accent)',
+                      }}
+                    >
+                      <div className="font-semibold">{tQ('score', { score: result.score })}</div>
+                      <div className="mt-1">
+                        {result.score >= quiz.pass_threshold
+                          ? tQ('pass_message')
+                          : tQ('low_score_message')}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onRetry}
+                      className="btn btn-secondary self-start"
+                    >
+                      {tQ('retry')}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
