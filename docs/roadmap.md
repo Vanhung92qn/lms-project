@@ -17,6 +17,7 @@ with a PR into `develop`, a demo, and an updated changelog.
 | **P6** — Billing | 12 | Money can move | Orders, Entitlements, VNPay + MoMo integration, invoice download, paywall middleware |
 | **P7** — Recommendation + Admin | 13–14 | Personalization + ops console | Nightly collaborative filtering, recommend widget, Super Admin panel (user management, server metrics iframe) |
 | **P8** — Hardening & Launch | 15–16 | Go-live | k6 load test @ 50 VU, full observability, backup/restore rehearsal, OWASP baseline scan, go-live on `khohoc.online` |
+| **P9** — AI Insight & Demo-Ready | 17–20 | Learning analytics surfaced for academic review | Auto-gen quiz for non-code lessons, massive seed, Classroom Heatmap, AI Tutor insights, Skill Radar, Interactive KG viz, explainable recommendations, dropout alert, mastery decay, AI code review. See [ADR-006](adr/ADR-006-p9-academic-insight-scope.md). |
 
 ## Definition of Done (per phase)
 
