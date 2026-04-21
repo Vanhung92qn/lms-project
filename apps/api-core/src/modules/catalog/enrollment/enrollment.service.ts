@@ -26,12 +26,15 @@ export class EnrollmentService {
     if (course.status !== 'published') {
       throw new NotFoundException({ code: 'course_not_found', message: 'Course not found' });
     }
-    // Paid courses require a successful order (Billing phase — P6).
-    // In P2 we short-circuit to a free enrollment so the flow is testable.
+    // Paid courses are access-gated through the Billing flow — student
+    // submits a pending payment, admin approves, and the approval tx
+    // creates both the Entitlement and the Enrollment. A direct enroll
+    // here is only allowed for free courses.
     if (course.pricingModel === 'paid') {
       throw new ConflictException({
         code: 'payment_required',
-        message: 'Paid courses require a completed order — available from P6',
+        message:
+          'Khoá này là khoá trả phí — hãy gửi giao dịch thanh toán để được duyệt.',
       });
     }
 
