@@ -11,16 +11,17 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { JwtAuthGuard } from '../iam/auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../iam/auth/auth.types';
-import { BillingService } from './billing.service';
+import { WalletService } from './wallet.service';
 
-class CreatePaymentDto {
-  @IsString()
-  @MaxLength(120)
-  course_slug!: string;
+class CreateTopupDto {
+  @IsInt()
+  @Min(100_000)          // 1,000 VND floor in cents; service bumps to 10,000 VND
+  @Max(50_000_000_00)    // 500M VND ceiling
+  amount_cents!: number;
 
   @IsIn(['momo', 'bank'])
   method!: 'momo' | 'bank';
@@ -31,6 +32,12 @@ class CreatePaymentDto {
   user_note?: string;
 }
 
+class PurchaseDto {
+  @IsString()
+  @MaxLength(120)
+  course_slug!: string;
+}
+
 class AdminDecisionDto {
   @IsOptional()
   @IsString()
@@ -39,22 +46,22 @@ class AdminDecisionDto {
 }
 
 /**
- * Student endpoints for creating and tracking payments + admin endpoints
- * for approving / rejecting. Payment instructions (MoMo phone, bank
- * account…) live in config and are exposed via a small public endpoint
- * so the FE renders them without hardcoding.
+ * Wallet endpoints. Student owns balance + top-up requests + course
+ * purchases; admin owns top-up approval. Course purchase is zero-admin
+ * once balance is funded — the admin only ever reviews money movement,
+ * not access.
  */
-@ApiTags('billing')
-@Controller({ path: 'billing', version: '1' })
-export class BillingController {
+@ApiTags('wallet')
+@Controller({ path: 'wallet', version: '1' })
+export class WalletController {
   constructor(
-    private readonly svc: BillingService,
+    private readonly svc: WalletService,
     private readonly config: ConfigService,
   ) {}
 
-  /** Public — MoMo / bank metadata shown in the purchase form. */
+  /** Public — MoMo / bank metadata shown in the top-up modal. */
   @Get('instructions')
-  @ApiOperation({ summary: 'Payment instructions (MoMo + bank) for the FE form' })
+  @ApiOperation({ summary: 'Payment instructions (MoMo + bank) for the FE' })
   instructions() {
     const b = this.config.get<Record<string, string | undefined>>('app.billing') ?? {};
     return {
@@ -64,6 +71,7 @@ export class BillingController {
         qrUrl: b.momoQrUrl ?? '',
       },
       bank: {
+        bin: b.bankBin ?? '',
         name: b.bankName ?? '',
         account: b.bankAccount ?? '',
         holder: b.bankHolder ?? '',
@@ -74,30 +82,38 @@ export class BillingController {
 
   // ---- Student ----------------------------------------------------------
 
-  @Post('payments')
+  @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a pending payment for a paid course' })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePaymentDto) {
-    return this.svc.createPending(user, {
-      courseSlug: dto.course_slug,
+  @ApiOperation({ summary: 'Current wallet balance' })
+  balance(@CurrentUser() user: AuthenticatedUser) {
+    return this.svc.getBalance(user.id);
+  }
+
+  @Post('me/topups')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a pending top-up request' })
+  createTopup(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateTopupDto) {
+    return this.svc.createTopup(user, {
+      amountCents: dto.amount_cents,
       method: dto.method,
       userNote: dto.user_note,
     });
   }
 
-  @Get('me/payments')
+  @Get('me/topups')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Current user payment history' })
+  @ApiOperation({ summary: 'Own top-up history (all statuses)' })
   listMine(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.listMine(user.id);
   }
 
-  @Patch('me/payments/:id/cancel')
+  @Patch('me/topups/:id/cancel')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cancel a pending payment the caller owns' })
+  @ApiOperation({ summary: 'Cancel own pending top-up' })
   cancelMine(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -105,12 +121,20 @@ export class BillingController {
     return this.svc.cancelMine(user.id, id);
   }
 
-  // ---- Admin ------------------------------------------------------------
-
-  @Get('admin/payments')
+  @Post('me/purchase')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List all payments (admin only), optionally filtered by status' })
+  @ApiOperation({ summary: 'Buy a paid course with wallet balance' })
+  purchase(@CurrentUser() user: AuthenticatedUser, @Body() dto: PurchaseDto) {
+    return this.svc.purchase(user, dto.course_slug);
+  }
+
+  // ---- Admin ------------------------------------------------------------
+
+  @Get('admin/topups')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all top-ups (admin only), optionally filter by status' })
   listForAdmin(
     @CurrentUser() user: AuthenticatedUser,
     @Query('status') status?: 'pending' | 'approved' | 'rejected' | 'cancelled',
@@ -118,10 +142,10 @@ export class BillingController {
     return this.svc.listForAdmin(user, status);
   }
 
-  @Patch('admin/payments/:id/approve')
+  @Patch('admin/topups/:id/approve')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Approve a pending payment (grants entitlement + enrolment)' })
+  @ApiOperation({ summary: 'Approve a pending top-up — credits the wallet balance' })
   approve(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -130,10 +154,10 @@ export class BillingController {
     return this.svc.approve(user, id, dto.admin_note);
   }
 
-  @Patch('admin/payments/:id/reject')
+  @Patch('admin/topups/:id/reject')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Reject a pending payment with an admin note' })
+  @ApiOperation({ summary: 'Reject a pending top-up with an admin note' })
   reject(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,

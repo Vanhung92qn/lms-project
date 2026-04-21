@@ -63,27 +63,39 @@ function authHeaders(token?: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Local type for the billing module — the shape mirrors
-// apps/api-core/src/modules/billing/billing.service.ts PaymentDto.
-// Inline instead of adding to @lms/shared-types because payments are
-// the only surface that uses it today; elevate later if the admin
-// dashboard or mobile app need it.
-export interface PaymentDto {
+// ---- Billing v1 — wallet manual topup (P6) ---------------------------
+// Kept local rather than in @lms/shared-types since only the student
+// wallet page + admin console consume it today.
+
+export type TopupMethod = 'momo' | 'bank';
+export type TopupStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export interface WalletBalanceDto {
+  balanceCents: number;
+  currency: 'VND';
+}
+
+export interface WalletTopupDto {
   id: string;
   userId: string;
   userEmail: string;
   userDisplayName: string;
-  courseId: string;
-  courseSlug: string;
-  courseTitle: string;
   amountCents: number;
   currency: string;
-  method: 'momo' | 'bank';
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  method: TopupMethod;
+  status: TopupStatus;
+  referenceCode: string;
   userNote: string | null;
   adminNote: string | null;
+  qrImageUrl: string | null;
   createdAt: string;
   approvedAt: string | null;
+}
+
+export interface WalletInstructionsDto {
+  momo: { phone: string; holder: string; qrUrl: string };
+  bank: { bin: string; name: string; account: string; holder: string };
+  currency: 'VND';
 }
 
 export const api = {
@@ -138,44 +150,50 @@ export const api = {
       headers: authHeaders(token),
     }),
 
-  // Billing v1 (P6) — manual MoMo / bank-transfer approval.
-  billing: {
-    instructions: () =>
-      request<{
-        momo: { phone: string; holder: string; qrUrl: string };
-        bank: { name: string; account: string; holder: string };
-        currency: string;
-      }>('/billing/instructions'),
-    createPayment: (
+  // Wallet v1 (P6 manual top-up) -----------------------------------------
+  wallet: {
+    instructions: () => request<WalletInstructionsDto>('/wallet/instructions'),
+    balance: (token: string) =>
+      request<WalletBalanceDto>('/wallet/me', { headers: authHeaders(token) }),
+    createTopup: (
       token: string,
-      dto: { course_slug: string; method: 'momo' | 'bank'; user_note?: string },
+      dto: { amount_cents: number; method: TopupMethod; user_note?: string },
     ) =>
-      request<PaymentDto>('/billing/payments', {
+      request<WalletTopupDto>('/wallet/me/topups', {
         method: 'POST',
         body: JSON.stringify(dto),
         headers: authHeaders(token),
       }),
-    myPayments: (token: string) =>
-      request<PaymentDto[]>('/billing/me/payments', { headers: authHeaders(token) }),
-    cancelPayment: (token: string, id: string) =>
-      request<{ ok: true }>(`/billing/me/payments/${id}/cancel`, {
+    myTopups: (token: string) =>
+      request<WalletTopupDto[]>('/wallet/me/topups', { headers: authHeaders(token) }),
+    cancelTopup: (token: string, id: string) =>
+      request<{ ok: true }>(`/wallet/me/topups/${id}/cancel`, {
         method: 'PATCH',
         headers: authHeaders(token),
       }),
+    purchase: (token: string, courseSlug: string) =>
+      request<{ entitlementId: string; remainingBalanceCents: number }>(
+        '/wallet/me/purchase',
+        {
+          method: 'POST',
+          body: JSON.stringify({ course_slug: courseSlug }),
+          headers: authHeaders(token),
+        },
+      ),
     admin: {
-      list: (token: string, status?: 'pending' | 'approved' | 'rejected' | 'cancelled') =>
-        request<PaymentDto[]>(
-          `/billing/admin/payments${status ? `?status=${status}` : ''}`,
+      listTopups: (token: string, status?: TopupStatus) =>
+        request<WalletTopupDto[]>(
+          `/wallet/admin/topups${status ? `?status=${status}` : ''}`,
           { headers: authHeaders(token) },
         ),
       approve: (token: string, id: string, adminNote?: string) =>
-        request<PaymentDto>(`/billing/admin/payments/${id}/approve`, {
+        request<WalletTopupDto>(`/wallet/admin/topups/${id}/approve`, {
           method: 'PATCH',
           body: JSON.stringify({ admin_note: adminNote }),
           headers: authHeaders(token),
         }),
       reject: (token: string, id: string, adminNote?: string) =>
-        request<PaymentDto>(`/billing/admin/payments/${id}/reject`, {
+        request<WalletTopupDto>(`/wallet/admin/topups/${id}/reject`, {
           method: 'PATCH',
           body: JSON.stringify({ admin_note: adminNote }),
           headers: authHeaders(token),

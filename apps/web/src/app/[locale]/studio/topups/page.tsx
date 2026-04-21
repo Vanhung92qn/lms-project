@@ -4,32 +4,27 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { useSession } from '@/lib/session';
-import { api, ApiError, type PaymentDto } from '@/lib/api';
-
-type Status = 'pending' | 'approved' | 'rejected' | 'cancelled';
+import { api, ApiError, type WalletTopupDto, type TopupStatus } from '@/lib/api';
 
 /**
- * Admin-only payments console. Filter by status, inspect the user's
- * note (MoMo txn ref / timestamp / screenshot URL), and approve or
- * reject with an admin note. Approval automatically grants the
- * entitlement and enrols the student in the course — see
- * apps/api-core/src/modules/billing/billing.service.ts.
+ * Admin-only top-up approval console. Approve → wallet balance credits
+ * atomically; course purchases happen later, zero admin involvement.
  */
-export default function AdminPaymentsPage() {
+export default function AdminTopupsPage() {
   const { user, isLoading } = useSession();
   return (
     <AdminLayout>
       {isLoading ? null : !user?.roles.includes('admin') ? (
         <ForbiddenState />
       ) : (
-        <PaymentsConsole />
+        <TopupsConsole />
       )}
     </AdminLayout>
   );
 }
 
 function ForbiddenState() {
-  const t = useTranslations('admin.payments');
+  const t = useTranslations('admin.topups');
   return (
     <main className="grid min-h-[50vh] place-items-center p-6">
       <p className="text-text-muted">{t('admin_only')}</p>
@@ -37,25 +32,20 @@ function ForbiddenState() {
   );
 }
 
-function PaymentsConsole() {
-  const t = useTranslations('admin.payments');
-  const [status, setStatus] = useState<Status>('pending');
-  const [rows, setRows] = useState<PaymentDto[]>([]);
+function TopupsConsole() {
+  const t = useTranslations('admin.topups');
+  const [status, setStatus] = useState<TopupStatus>('pending');
+  const [rows, setRows] = useState<WalletTopupDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    let token: string | null = null;
-    try {
-      token = sessionStorage.getItem('lms-access');
-    } catch {
-      token = null;
-    }
+    const token = sessionStorage.getItem('lms-access');
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      setRows(await api.billing.admin.list(token, status));
+      setRows(await api.wallet.admin.listTopups(token, status));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : (e as Error).message);
     } finally {
@@ -90,8 +80,8 @@ function PaymentsConsole() {
           <table className="w-full border-collapse text-sm">
             <thead className="bg-code text-left text-[11px] uppercase tracking-wider text-text-muted">
               <tr>
+                <th className="px-4 py-2">{t('col_ref')}</th>
                 <th className="px-4 py-2">{t('col_user')}</th>
-                <th className="px-4 py-2">{t('col_course')}</th>
                 <th className="px-4 py-2">{t('col_amount')}</th>
                 <th className="px-4 py-2">{t('col_method')}</th>
                 <th className="px-4 py-2">{t('col_note')}</th>
@@ -100,8 +90,8 @@ function PaymentsConsole() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => (
-                <PaymentRow key={p.id} payment={p} onChanged={refresh} />
+              {rows.map((r) => (
+                <TopupRow key={r.id} topup={r} onChanged={refresh} />
               ))}
             </tbody>
           </table>
@@ -115,11 +105,11 @@ function StatusFilter({
   current,
   onChange,
 }: {
-  current: Status;
-  onChange: (s: Status) => void;
+  current: TopupStatus;
+  onChange: (s: TopupStatus) => void;
 }) {
-  const t = useTranslations('admin.payments.status');
-  const statuses: Status[] = ['pending', 'approved', 'rejected', 'cancelled'];
+  const t = useTranslations('admin.topups.status');
+  const statuses: TopupStatus[] = ['pending', 'approved', 'rejected', 'cancelled'];
   return (
     <div role="tablist" className="flex gap-1 rounded-pill bg-code p-1">
       {statuses.map((s) => (
@@ -140,14 +130,14 @@ function StatusFilter({
   );
 }
 
-function PaymentRow({
-  payment,
+function TopupRow({
+  topup,
   onChanged,
 }: {
-  payment: PaymentDto;
+  topup: WalletTopupDto;
   onChanged: () => void;
 }) {
-  const t = useTranslations('admin.payments');
+  const t = useTranslations('admin.topups');
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
   const [rejectNote, setRejectNote] = useState('');
   const [rejecting, setRejecting] = useState(false);
@@ -163,10 +153,10 @@ function PaymentRow({
   const approve = async () => {
     const tok = token();
     if (!tok) return;
-    if (!window.confirm(t('confirm_approve'))) return;
+    if (!window.confirm(t('confirm_approve', { amount: formatVnd(topup.amountCents) }))) return;
     setBusy('approve');
     try {
-      await api.billing.admin.approve(tok, payment.id);
+      await api.wallet.admin.approve(tok, topup.id);
       onChanged();
     } catch (e) {
       window.alert((e as Error).message);
@@ -181,7 +171,7 @@ function PaymentRow({
     const note = rejectNote.trim() || t('default_reject_note');
     setBusy('reject');
     try {
-      await api.billing.admin.reject(tok, payment.id, note);
+      await api.wallet.admin.reject(tok, topup.id, note);
       onChanged();
     } catch (e) {
       window.alert((e as Error).message);
@@ -195,31 +185,30 @@ function PaymentRow({
     <>
       <tr className="border-t border-border align-top">
         <td className="px-4 py-3">
-          <div className="font-semibold text-text">{payment.userDisplayName}</div>
-          <div className="text-xs text-text-muted">{payment.userEmail}</div>
+          <span className="font-mono text-xs text-accent">{topup.referenceCode}</span>
         </td>
         <td className="px-4 py-3">
-          <div className="font-mono text-xs text-text">{payment.courseSlug}</div>
-          <div className="text-xs text-text-muted">{payment.courseTitle}</div>
+          <div className="font-semibold text-text">{topup.userDisplayName}</div>
+          <div className="text-xs text-text-muted">{topup.userEmail}</div>
         </td>
         <td className="px-4 py-3 font-mono text-sm tabular-nums text-text">
-          {new Intl.NumberFormat('vi-VN').format(payment.amountCents / 100)} {payment.currency}
+          {formatVnd(topup.amountCents)}
         </td>
         <td className="px-4 py-3">
           <span className="rounded-pill border border-border px-2 py-0.5 text-[10px] uppercase tracking-wider text-text-muted">
-            {payment.method}
+            {topup.method}
           </span>
         </td>
         <td className="max-w-[240px] px-4 py-3">
           <div className="whitespace-pre-wrap break-words text-xs text-text-muted">
-            {payment.userNote || '—'}
+            {topup.userNote || '—'}
           </div>
         </td>
         <td className="px-4 py-3 text-xs text-text-muted">
-          {new Date(payment.createdAt).toLocaleString('vi-VN')}
+          {new Date(topup.createdAt).toLocaleString('vi-VN')}
         </td>
         <td className="px-4 py-3">
-          {payment.status === 'pending' ? (
+          {topup.status === 'pending' ? (
             <div className="flex flex-col gap-1">
               <button
                 type="button"
@@ -239,7 +228,7 @@ function PaymentRow({
               </button>
             </div>
           ) : (
-            <StatusBadge status={payment.status} />
+            <StatusBadge status={topup.status} />
           )}
         </td>
       </tr>
@@ -271,9 +260,9 @@ function PaymentRow({
   );
 }
 
-function StatusBadge({ status }: { status: Status }) {
-  const t = useTranslations('admin.payments.status');
-  const palette: Record<Status, { bg: string; fg: string }> = {
+function StatusBadge({ status }: { status: TopupStatus }) {
+  const t = useTranslations('admin.topups.status');
+  const palette: Record<TopupStatus, { bg: string; fg: string }> = {
     pending: { bg: 'rgba(245,158,11,0.15)', fg: '#f59e0b' },
     approved: { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e' },
     rejected: { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' },
@@ -288,4 +277,8 @@ function StatusBadge({ status }: { status: Status }) {
       {t(status)}
     </span>
   );
+}
+
+function formatVnd(cents: number): string {
+  return `${new Intl.NumberFormat('vi-VN').format(Math.round(cents / 100))} đ`;
 }
