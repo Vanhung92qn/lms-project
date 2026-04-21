@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { MasteryTrigger } from '../../knowledge/mastery-trigger.service';
 import type { AuthenticatedUser } from '../../iam/auth/auth.types';
-import { QuizAiClient, type QuizQuestionFromAi } from './quiz-ai.client';
+import { QuizAiClient } from './quiz-ai.client';
 import type { QuizAttemptDto } from './dto/attempt.dto';
 
 // Threshold for "passed" on the formative quiz. Same number we use in UI
