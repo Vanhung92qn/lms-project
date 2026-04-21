@@ -95,6 +95,18 @@
     "no_courses": "Bạn chưa đăng ký khoá học nào. Hãy duyệt catalog để bắt đầu.",
     "load_failed": "Không tải được dữ liệu bảng điều khiển."
   },
+  "leaderboard": {
+    "title": "Bảng xếp hạng",
+    "subtitle": "Theo dõi tiến độ học tập dựa trên số bài Accepted và thời gian phạt.",
+    "empty": "Chưa có dữ liệu xếp hạng.",
+    "load_failed": "Không tải được bảng xếp hạng.",
+    "mock_notice": "Đang hiển thị dữ liệu mẫu. Dữ liệu thật sẽ được đồng bộ sau.",
+    "filters": {
+      "global": "Toàn cục",
+      "course": "Theo khóa học",
+      "coming_soon": "Sắp có dữ liệu"
+    }
+  },
   "tutor": {
     "tab_terminal": "Terminal",
     "tab_tutor": "AI Tutor",

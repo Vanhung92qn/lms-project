@@ -23,7 +23,7 @@ export function NavItems({ variant = 'solid' }: { variant?: 'solid' | 'glass' })
     { key: 'learn',       href: '/courses' },
     { key: 'challenge',   href: null },
     { key: 'contest',     href: null },
-    { key: 'leaderboard', href: null },
+    { key: 'leaderboard', href: '/leaderboard' },
     { key: 'forum',       href: null },
   ];
 

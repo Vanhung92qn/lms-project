@@ -95,6 +95,18 @@
     "no_courses": "You haven't enrolled in any course yet. Browse the catalog to get started.",
     "load_failed": "Could not load the dashboard."
   },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "subtitle": "Track progress by Accepted solutions and penalty time.",
+    "empty": "No ranking data yet.",
+    "load_failed": "Could not load leaderboard data.",
+    "mock_notice": "Showing mock leaderboard data for now. Live data will sync later.",
+    "filters": {
+      "global": "Global",
+      "course": "By course",
+      "coming_soon": "Data coming soon"
+    }
+  },
   "tutor": {
     "tab_terminal": "Terminal",
     "tab_tutor": "AI Tutor",

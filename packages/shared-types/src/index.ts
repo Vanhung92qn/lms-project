@@ -191,3 +191,32 @@ export interface LessonDetail {
   next_lesson: LessonNavLink | null;
   exercise: LessonExerciseDetail | null;
 }
+
+// -------------------- Leaderboards --------------------
+
+export type LeaderboardScope = 'global' | 'course';
+
+export interface LeaderboardSummary {
+  id: string;
+  scope: LeaderboardScope;
+  title: string;
+  course_id: string | null;
+  updated_at: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  score: number;
+  solved_count: number;
+  penalty_seconds: number;
+  last_submission_at: string | null;
+  is_me?: boolean;
+}
+
+export interface PaginatedLeaderboardEntries {
+  items: LeaderboardEntry[];
+  page: { cursor: string | null; limit: number; has_more: boolean };
+}

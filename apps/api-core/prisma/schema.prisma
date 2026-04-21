@@ -49,6 +49,7 @@ model User {
   coursesTaught  Course[]       @relation("CoursesTaught")
   enrollments    Enrollment[]
   submissions    Submission[]
+  leaderboardEntries LeaderboardEntry[]
 
   @@index([status])
   @@map("users")
@@ -118,6 +119,7 @@ model Course {
   teacher       User          @relation("CoursesTaught", fields: [teacherId], references: [id])
   modules       Module[]
   enrollments   Enrollment[]
+  leaderboards  Leaderboard[]
 
   @@index([status, publishedAt])
   @@index([teacherId])
@@ -206,6 +208,11 @@ enum Verdict {
   ie      // internal error (orchestrator failure)
 }
 
+enum LeaderboardScope {
+  global
+  course
+}
+
 model Submission {
   id          String       @id @default(uuid()) @db.Uuid
   userId      String       @map("user_id") @db.Uuid
@@ -264,6 +271,42 @@ model Enrollment {
   @@index([userId])
   @@index([courseId])
   @@map("enrollments")
+}
+
+model Leaderboard {
+  id         String           @id @default(uuid()) @db.Uuid
+  scope      LeaderboardScope
+  title      String
+  courseId   String?          @map("course_id") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  course     Course?          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  entries    LeaderboardEntry[]
+
+  @@unique([scope, courseId])
+  @@index([scope])
+  @@map("leaderboards")
+}
+
+model LeaderboardEntry {
+  leaderboardId     String    @map("leaderboard_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  rank              Int
+  score             Int
+  solvedCount       Int       @default(0) @map("solved_count")
+  penaltySeconds    Int       @default(0) @map("penalty_seconds")
+  lastSubmissionAt  DateTime? @map("last_submission_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  leaderboard       Leaderboard @relation(fields: [leaderboardId], references: [id], onDelete: Cascade)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([leaderboardId, userId])
+  @@unique([leaderboardId, rank])
+  @@index([leaderboardId, rank])
+  @@index([leaderboardId, score(sort: Desc), penaltySeconds, lastSubmissionAt])
+  @@map("leaderboard_entries")
 }
 
 model Role {

@@ -53,7 +53,9 @@ import type {
   CourseDetail,
   CourseSummary,
   EnrollResponse,
+  LeaderboardSummary,
   LessonDetail,
+  PaginatedLeaderboardEntries,
   PaginatedCourses,
   Submission,
   SubmissionSummary,
@@ -114,6 +116,23 @@ export const api = {
     request<SubmissionSummary[]>(`/me/submissions?exercise_id=${exerciseId}`, {
       headers: authHeaders(token),
     }),
+
+  // Leaderboards
+  listLeaderboards: () => request<LeaderboardSummary[]>('/leaderboards'),
+  leaderboardEntries: (leaderboardId: string, params?: { cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.cursor) q.set('cursor', params.cursor);
+    if (params?.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return request<PaginatedLeaderboardEntries>(
+      `/leaderboards/${leaderboardId}/entries${qs ? `?${qs}` : ''}`,
+    );
+  },
+  leaderboardAroundMe: (leaderboardId: string, token: string) =>
+    request<{ items: Array<PaginatedLeaderboardEntries['items'][number]> }>(
+      `/leaderboards/${leaderboardId}/entries/around-me`,
+      { headers: authHeaders(token) },
+    ),
 
   // Teacher / Studio — all require Bearer; backend enforces teacher|admin role.
   teacher: {
