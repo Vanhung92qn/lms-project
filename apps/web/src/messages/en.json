@@ -173,26 +173,29 @@
       "sign_in_required": "Sign in to use AI explain."
     },
     "quiz": {
-      "title": "Check your understanding",
-      "subtitle": "An AI-generated short quiz to confirm you grasped the concepts — you need {threshold}% to complete this lesson.",
-      "start_cta": "Start quiz",
+      "title": "Quick self-check",
+      "subtitle": "Optional — 1-2 AI-generated questions to double-check your understanding. No score pressure, retry as many times as you like.",
+      "start_cta": "Open self-check",
       "generating": "Generating questions (up to 20s)…",
-      "submit": "Submit",
+      "submit": "Check",
       "submitting": "Grading…",
       "retry": "Retake",
-      "score": "Score {score}%",
-      "passed": "Passed",
-      "failed": "Not yet",
-      "need_score": "Need ≥ {threshold}% to complete",
-      "best_score": "Best score: {score}%",
+      "score": "{score}% correct",
       "question_n": "Question {n}",
-      "correct": "Correct",
-      "wrong": "Incorrect",
       "explanation": "Explanation",
-      "try_again": "The questions stay the same — review the lesson and try again.",
-      "pass_message": "Nailed it! BKT has credited your mastery for this lesson's concepts.",
+      "pass_message": "Nice — you've got the gist of the lesson.",
+      "low_score_message": "No worries — review the lesson and try again whenever you want.",
+      "best_score": "Best score: {score}%",
       "generate_failed": "Quiz generation failed. Ask the teacher if this persists.",
       "content_too_short": "Lesson content is too short to generate a quiz."
+    },
+    "complete": {
+      "cta": "Mark lesson complete",
+      "marking": "Saving…",
+      "done": "✓ Completed",
+      "done_subtitle": "This lesson is marked complete — feel free to move on to the next one.",
+      "failed": "Could not save. Try again.",
+      "helper": "Done reading? Tap below to save your progress — no quiz required."
     }
   },
   "catalog": {

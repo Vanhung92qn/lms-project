@@ -396,9 +396,10 @@ export const api = {
       }),
   },
 
-  // Lesson formative quiz (P9.0) — non-code lessons use the quiz as a
-  // completion gate. `get` triggers generation on first call, caches
-  // thereafter; the returned payload is student-safe (no correct index).
+  // Lesson micro-check quiz + completion tracking (P9.0, refined).
+  // `get` lazily generates a 1–2 question "Câu hỏi ôn tập nhanh" on first
+  // open and caches it server-side. Any attempt marks the lesson complete;
+  // `markComplete` is the no-quiz alternative for a relaxed theory flow.
   quiz: {
     get: (token: string, lessonId: string) =>
       request<{
@@ -409,6 +410,7 @@ export const api = {
         questions: Array<{ id: string; question: string; options: string[] }>;
         attempts: Array<{ id: string; score: number; passed: boolean; attempted_at: string }>;
         best_score: number | null;
+        completed: boolean;
       }>(`/lessons/${lessonId}/quiz`, { headers: authHeaders(token) }),
     attempt: (
       token: string,
@@ -428,9 +430,19 @@ export const api = {
           explanation: string;
         }>;
         fired_mastery_rebuild: boolean;
+        completed: boolean;
       }>(`/lessons/${lessonId}/quiz/attempts`, {
         method: 'POST',
         body: JSON.stringify({ answers }),
+        headers: authHeaders(token),
+      }),
+    markComplete: (token: string, lessonId: string) =>
+      request<{
+        completed: boolean;
+        method: 'mark' | 'quiz';
+        completed_at: string;
+      }>(`/lessons/${lessonId}/complete`, {
+        method: 'POST',
         headers: authHeaders(token),
       }),
   },

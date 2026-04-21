@@ -58,6 +58,7 @@ model User {
   approvedTopups     WalletTopup[]  @relation("AdminApprovedTopups")
   entitlements       Entitlement[]
   quizAttempts       QuizAttempt[]
+  lessonCompletions  LessonCompletion[]
 
   @@index([status])
   @@map("users")
@@ -165,6 +166,7 @@ model Lesson {
   knowledgeTags   LessonKnowledgeNode[]
   quiz            LessonQuiz?
   quizAttempts    QuizAttempt[]
+  completions     LessonCompletion[]
 
   @@unique([moduleId, sortOrder])
   @@index([moduleId])
@@ -179,11 +181,17 @@ model Exercise {
   solutionCode   String?      @map("solution_code") @db.Text
   memoryLimitMb  Int          @default(128) @map("memory_limit_mb")
   timeLimitMs    Int          @default(3000) @map("time_limit_ms")
+  // Tag for future Arena / Challenge mode — hard exercises are surfaced
+  // under /arena with their own Elo / seasonal leaderboard. No behaviour
+  // change yet; listings / grading paths still treat all exercises
+  // identically. Populated by seed-massive + teacher Studio.
+  isChallenge    Boolean      @default(false) @map("is_challenge")
 
   lesson         Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   testCases      TestCase[]
   submissions    Submission[]
 
+  @@index([isChallenge])
   @@map("exercises")
 }
 
@@ -298,6 +306,31 @@ model QuizAttempt {
   @@index([userId, lessonId])
   @@index([lessonId, passed])
   @@map("quiz_attempts")
+}
+
+// Low-stakes completion signal — "I read/watched this, mark it done".
+// Separate from QuizAttempt because taking a quiz is one kind of
+// completion (method='quiz') but not the only one — theory lessons also
+// expose a plain "Đánh dấu hoàn thành" button (method='mark') so the
+// student isn't forced into a quiz before moving on. Unique on
+// (userId, lessonId) so re-clicks are idempotent.
+//
+// This feeds progress UI and the completion heat-map; it deliberately
+// does NOT feed BKT (that stays submission + quiz attempt only — reading
+// alone shouldn't bump mastery).
+
+model LessonCompletion {
+  userId      String   @map("user_id") @db.Uuid
+  lessonId    String   @map("lesson_id") @db.Uuid
+  method      String   @default("mark") // 'mark' | 'quiz'
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lessonId])
+  @@index([lessonId])
+  @@map("lesson_completions")
 }
 
 // -----------------------------------------------------------------------------

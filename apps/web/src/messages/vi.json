@@ -173,26 +173,29 @@
       "sign_in_required": "Vui lòng đăng nhập để dùng AI giải thích."
     },
     "quiz": {
-      "title": "Kiểm tra hiểu bài",
-      "subtitle": "AI sinh câu hỏi ngắn từ nội dung bài để xác nhận bạn đã nắm kiến thức — cần {threshold}% để hoàn thành.",
-      "start_cta": "Bắt đầu kiểm tra",
+      "title": "Câu hỏi ôn tập nhanh",
+      "subtitle": "Tuỳ chọn — 1-2 câu hỏi AI tự sinh để bạn tự kiểm tra lại. Không tính điểm, làm sai thoải mái.",
+      "start_cta": "Mở câu hỏi ôn tập",
       "generating": "Đang sinh câu hỏi (tối đa 20s)…",
-      "submit": "Nộp bài",
+      "submit": "Kiểm tra",
       "submitting": "Đang chấm…",
       "retry": "Làm lại",
-      "score": "Điểm {score}%",
-      "passed": "Đạt",
-      "failed": "Chưa đạt",
-      "need_score": "Cần ≥ {threshold}% để hoàn thành bài",
-      "best_score": "Điểm cao nhất: {score}%",
+      "score": "{score}% đúng",
       "question_n": "Câu {n}",
-      "correct": "Đúng",
-      "wrong": "Sai",
       "explanation": "Giải thích",
-      "try_again": "Câu hỏi sẽ giữ nguyên — hãy đọc lại phần lý thuyết rồi thử lại.",
-      "pass_message": "Chính xác! BKT đã ghi nhận — kiến thức bài này được cộng điểm mastery.",
+      "pass_message": "Tốt lắm — bạn đã nắm được ý chính của bài.",
+      "low_score_message": "Chưa sao — xem lại lý thuyết rồi thử lại bất cứ lúc nào bạn muốn.",
+      "best_score": "Điểm cao nhất: {score}%",
       "generate_failed": "Không sinh được câu hỏi. Liên hệ giáo viên nếu vẫn không chạy.",
       "content_too_short": "Bài học chưa đủ nội dung để sinh quiz."
+    },
+    "complete": {
+      "cta": "Đánh dấu hoàn thành",
+      "marking": "Đang lưu…",
+      "done": "✓ Đã hoàn thành",
+      "done_subtitle": "Bài này đã được đánh dấu hoàn thành — bạn có thể chuyển qua bài tiếp theo.",
+      "failed": "Không lưu được. Thử lại.",
+      "helper": "Đọc xong rồi? Nhấn nút dưới đây để lưu tiến độ, không cần làm quiz."
     }
   },
   "catalog": {

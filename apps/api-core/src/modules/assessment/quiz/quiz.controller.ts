@@ -39,4 +39,17 @@ export class QuizController {
   ) {
     return this.svc.attempt(user, lessonId, dto);
   }
+
+  @Post('lessons/:id/complete')
+  // Cheap upsert; 20/min matches the quiz GET limit.
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @ApiOperation({
+    summary: 'Mark a lesson complete without taking the quiz (idempotent)',
+  })
+  markComplete(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) lessonId: string,
+  ) {
+    return this.svc.markComplete(user, lessonId);
+  }
 }
