@@ -151,6 +151,77 @@ async function seedDemoCourse(): Promise<void> {
   console.warn(`[seed] demo course created: ${course.slug}`);
 }
 
+/**
+ * Initial Knowledge Graph vocabulary. Teachers tag lessons against these
+ * slugs; data-science updates user_mastery keyed by slug. Keep the list
+ * short and opinionated — v1 covers foundational C++ concepts only. Add
+ * more when P5c dashboards reveal what's missing.
+ */
+const KNOWLEDGE_NODES: Array<{ slug: string; title: string; domain: string }> = [
+  // cpp-core
+  { slug: 'io-basics',       title: 'Nhập xuất cơ bản (cin/cout)',  domain: 'cpp' },
+  { slug: 'variables-types', title: 'Biến và kiểu dữ liệu',         domain: 'cpp' },
+  { slug: 'operators',       title: 'Toán tử và biểu thức',         domain: 'cpp' },
+  { slug: 'control-flow',    title: 'Rẽ nhánh (if/else, switch)',   domain: 'cpp' },
+  { slug: 'loops',           title: 'Vòng lặp (for/while)',         domain: 'cpp' },
+  { slug: 'functions',       title: 'Hàm và tham số',               domain: 'cpp' },
+  { slug: 'arrays',          title: 'Mảng một chiều',               domain: 'cpp' },
+  { slug: 'strings',         title: 'Chuỗi ký tự',                  domain: 'cpp' },
+  { slug: 'pointers',        title: 'Con trỏ và tham chiếu',        domain: 'cpp' },
+  { slug: 'recursion',       title: 'Đệ quy',                       domain: 'cpp' },
+  // oop
+  { slug: 'oop-basics',       title: 'OOP: lớp và đối tượng',       domain: 'cpp' },
+  { slug: 'oop-inheritance',  title: 'OOP: kế thừa + đa hình',      domain: 'cpp' },
+  // algo + ds
+  { slug: 'algo-sorting',    title: 'Thuật toán sắp xếp',           domain: 'algo' },
+  { slug: 'algo-searching',  title: 'Thuật toán tìm kiếm',          domain: 'algo' },
+  { slug: 'ds-stack-queue',  title: 'Stack và Queue',               domain: 'ds'   },
+];
+
+/**
+ * Directed prerequisite edges — "A is a prerequisite for B". Used by P5c
+ * next-lesson suggestion: when student_mastery(A) < 0.5, we don't let B
+ * surface as a suggestion yet.
+ */
+const KNOWLEDGE_PREREQS: Array<[string, string]> = [
+  ['io-basics',       'variables-types'],
+  ['variables-types', 'operators'],
+  ['operators',       'control-flow'],
+  ['control-flow',    'loops'],
+  ['loops',           'functions'],
+  ['functions',       'arrays'],
+  ['arrays',          'strings'],
+  ['arrays',          'pointers'],
+  ['pointers',        'recursion'],
+  ['functions',       'oop-basics'],
+  ['oop-basics',      'oop-inheritance'],
+  ['arrays',          'algo-sorting'],
+  ['arrays',          'algo-searching'],
+  ['arrays',          'ds-stack-queue'],
+];
+
+async function seedKnowledgeGraph(): Promise<void> {
+  for (const n of KNOWLEDGE_NODES) {
+    await prisma.knowledgeNode.upsert({
+      where: { slug: n.slug },
+      update: { title: n.title, domain: n.domain },
+      create: n,
+    });
+  }
+  for (const [fromSlug, toSlug] of KNOWLEDGE_PREREQS) {
+    const from = await prisma.knowledgeNode.findUnique({ where: { slug: fromSlug } });
+    const to = await prisma.knowledgeNode.findUnique({ where: { slug: toSlug } });
+    if (!from || !to) continue;
+    await prisma.knowledgeEdge.upsert({
+      where: {
+        fromId_toId_relation: { fromId: from.id, toId: to.id, relation: 'prereq' },
+      },
+      update: {},
+      create: { fromId: from.id, toId: to.id, relation: 'prereq', weight: 1 },
+    });
+  }
+}
+
 async function main() {
   console.warn('[seed] upserting roles');
   await upsertRoles();
@@ -162,6 +233,9 @@ async function main() {
 
   console.warn('[seed] seeding demo course');
   await seedDemoCourse();
+
+  console.warn('[seed] seeding knowledge graph (15 nodes, 14 prereq edges)');
+  await seedKnowledgeGraph();
 
   console.warn('[seed] done');
 }

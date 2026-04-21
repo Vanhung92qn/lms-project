@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../iam/auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { MasteryTrigger } from '../knowledge/mastery-trigger.service';
 import { SandboxClient, type RunnerVerdict } from './sandbox/sandbox.client';
 
 // Synchronous submission flow — api-core forwards the request to the
@@ -21,6 +22,7 @@ export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sandbox: SandboxClient,
+    private readonly mastery: MasteryTrigger,
   ) {}
 
   async submit(user: AuthenticatedUser, dto: { exercise_id: string; source_code: string }) {
@@ -98,6 +100,13 @@ export class SubmissionsService {
           finishedAt: new Date(),
         },
       });
+
+      // AC submissions move the student's knowledge-graph mastery needle —
+      // ping the data-science service to recompute. Fire-and-forget; a
+      // slow or offline DS service must not delay the grading response.
+      if (runner.verdict === 'ac') {
+        this.mastery.rebuildForUser(user.id);
+      }
 
       return this.hydrate(updated.id);
     } catch (e) {
