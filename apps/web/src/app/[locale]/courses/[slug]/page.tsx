@@ -7,6 +7,7 @@ import { Link, useRouter } from '@/lib/i18n/routing';
 import { api, ApiError } from '@/lib/api';
 import type { CourseDetail } from '@lms/shared-types';
 import { EnrollButton } from './EnrollButton';
+import { PurchaseButton } from './PurchaseButton';
 
 // Client-rendered so enrollment state can be authoritative (the SSR path
 // can't see the caller's token, so `is_enrolled` would otherwise always
@@ -160,12 +161,23 @@ export default function CourseDetailPage() {
               </span>
             </div>
 
-            <EnrollButton
-              slug={course.slug}
-              enrolled={enrolled}
-              firstLessonId={course.modules[0]?.lessons[0]?.id ?? null}
-              onEnrolled={() => setEnrolled(true)}
-            />
+            {course.pricing_model === 'paid' && course.price_cents ? (
+              <PurchaseButton
+                slug={course.slug}
+                priceCents={course.price_cents}
+                currency={course.currency ?? 'VND'}
+                enrolled={enrolled}
+                firstLessonId={course.modules[0]?.lessons[0]?.id ?? null}
+                onEnrolled={() => setEnrolled(true)}
+              />
+            ) : (
+              <EnrollButton
+                slug={course.slug}
+                enrolled={enrolled}
+                firstLessonId={course.modules[0]?.lessons[0]?.id ?? null}
+                onEnrolled={() => setEnrolled(true)}
+              />
+            )}
 
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>

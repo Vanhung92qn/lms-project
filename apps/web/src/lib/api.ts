@@ -63,6 +63,29 @@ function authHeaders(token?: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Local type for the billing module — the shape mirrors
+// apps/api-core/src/modules/billing/billing.service.ts PaymentDto.
+// Inline instead of adding to @lms/shared-types because payments are
+// the only surface that uses it today; elevate later if the admin
+// dashboard or mobile app need it.
+export interface PaymentDto {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userDisplayName: string;
+  courseId: string;
+  courseSlug: string;
+  courseTitle: string;
+  amountCents: number;
+  currency: string;
+  method: 'momo' | 'bank';
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  userNote: string | null;
+  adminNote: string | null;
+  createdAt: string;
+  approvedAt: string | null;
+}
+
 export const api = {
   register: (dto: RegisterRequest) =>
     request<AuthResponse>('/auth/register', {
@@ -114,6 +137,51 @@ export const api = {
     request<SubmissionSummary[]>(`/me/submissions?exercise_id=${exerciseId}`, {
       headers: authHeaders(token),
     }),
+
+  // Billing v1 (P6) — manual MoMo / bank-transfer approval.
+  billing: {
+    instructions: () =>
+      request<{
+        momo: { phone: string; holder: string; qrUrl: string };
+        bank: { name: string; account: string; holder: string };
+        currency: string;
+      }>('/billing/instructions'),
+    createPayment: (
+      token: string,
+      dto: { course_slug: string; method: 'momo' | 'bank'; user_note?: string },
+    ) =>
+      request<PaymentDto>('/billing/payments', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+    myPayments: (token: string) =>
+      request<PaymentDto[]>('/billing/me/payments', { headers: authHeaders(token) }),
+    cancelPayment: (token: string, id: string) =>
+      request<{ ok: true }>(`/billing/me/payments/${id}/cancel`, {
+        method: 'PATCH',
+        headers: authHeaders(token),
+      }),
+    admin: {
+      list: (token: string, status?: 'pending' | 'approved' | 'rejected' | 'cancelled') =>
+        request<PaymentDto[]>(
+          `/billing/admin/payments${status ? `?status=${status}` : ''}`,
+          { headers: authHeaders(token) },
+        ),
+      approve: (token: string, id: string, adminNote?: string) =>
+        request<PaymentDto>(`/billing/admin/payments/${id}/approve`, {
+          method: 'PATCH',
+          body: JSON.stringify({ admin_note: adminNote }),
+          headers: authHeaders(token),
+        }),
+      reject: (token: string, id: string, adminNote?: string) =>
+        request<PaymentDto>(`/billing/admin/payments/${id}/reject`, {
+          method: 'PATCH',
+          body: JSON.stringify({ admin_note: adminNote }),
+          headers: authHeaders(token),
+        }),
+    },
+  },
 
   // Knowledge Graph (P5b/c) ---------------------------------------------
   knowledge: {
