@@ -25,6 +25,7 @@ import { JwtAuthGuard } from '../iam/auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../iam/auth/auth.types';
 import { TutorTierResolver } from './tier-resolver.service';
+import { TelemetryService } from '../telemetry/telemetry.service';
 
 class TutorHistoryItem {
   @IsIn(['user', 'assistant'])
@@ -110,6 +111,7 @@ export class TutorController {
   constructor(
     private readonly config: ConfigService,
     private readonly tier: TutorTierResolver,
+    private readonly telemetry: TelemetryService,
   ) {}
 
   @Post('ask')
@@ -163,17 +165,71 @@ export class TutorController {
       });
     }
 
+    // Tee the stream: forward every byte to the student AND parse token
+    // deltas into `assistantAccum` so we can persist the completed turn
+    // to telemetry. Parsing runs on the already-forwarded bytes so it
+    // adds no latency to the visible tokens.
     const reader = upstream.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let sseBuf = '';
+    let assistantAccum = '';
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (value) res.write(Buffer.from(value));
+        if (!value) continue;
+        res.write(Buffer.from(value));
+        sseBuf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = sseBuf.indexOf('\n\n')) >= 0) {
+          const raw = sseBuf.slice(0, idx);
+          sseBuf = sseBuf.slice(idx + 2);
+          assistantAccum += extractDelta(raw);
+        }
       }
     } catch (e) {
       this.log.warn(`stream piping failed: ${(e as Error).message}`);
     } finally {
       res.end();
     }
+
+    // Best-effort telemetry write. We intentionally do NOT await — the
+    // response has already been sent, and a slow Mongo write should
+    // never delay the next request on this worker.
+    if (assistantAccum.trim()) {
+      const userMessage =
+        dto.question ??
+        (dto.intent === 'fix-error'
+          ? dto.locale === 'en'
+            ? 'My submission failed. What should I fix?'
+            : 'Tôi vừa submit và bị báo lỗi. Bạn gợi ý tôi nên sửa chỗ nào?'
+          : '');
+      void this.telemetry.appendChat({
+        userId: user.id,
+        lessonId: dto.lesson_id ?? null,
+        provider: decision.provider,
+        locale: dto.locale ?? 'vi',
+        userMessage,
+        assistantMessage: assistantAccum,
+      });
+    }
+  }
+}
+
+function extractDelta(rawEvent: string): string {
+  // Parse one SSE event (two or more lines terminated by blank line). We
+  // only care about `event: token` frames whose data is `{"delta":"…"}`.
+  let event = 'message';
+  let data = '';
+  for (const ln of rawEvent.split('\n')) {
+    if (ln.startsWith('event:')) event = ln.slice(6).trim();
+    else if (ln.startsWith('data:')) data += ln.slice(5).trim();
+  }
+  if (event !== 'token' || !data) return '';
+  try {
+    const parsed = JSON.parse(data) as { delta?: string };
+    return parsed.delta ?? '';
+  } catch {
+    return '';
   }
 }
