@@ -41,6 +41,7 @@ export const appConfig = registerAs('app', () => ({
   database: { url: required('DATABASE_URL') },
   redis: { url: process.env.REDIS_URL ?? 'redis://localhost:6379' },
   sandbox: { url: process.env.SANDBOX_URL ?? 'http://localhost:5001' },
+  dataScience: { url: process.env.DATA_SCIENCE_URL ?? 'http://localhost:5003' },
   ai: {
     gatewayUrl: process.env.AI_GATEWAY_URL ?? 'http://localhost:5002',
     // Kept here only so the tier resolver can check whether paid-tier
