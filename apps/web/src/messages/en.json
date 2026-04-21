@@ -171,7 +171,33 @@
     "login_to_enroll": "Sign in to enroll",
     "enroll_failed": "Enrollment failed. Please retry.",
     "go_dashboard": "Go to dashboard",
-    "start_learning": "Start learning →"
+    "start_learning": "Start learning →",
+    "purchase": {
+      "buy_cta": "Buy course · {price}",
+      "login_to_purchase": "Sign in to buy",
+      "already_purchased": "You own this course",
+      "start_learning": "Start learning →",
+      "go_dashboard": "Go to dashboard",
+      "pending_title": "Waiting for admin approval",
+      "pending_body": "We'll verify the transfer within a few hours. You'll gain access as soon as it's approved.",
+      "cancel_payment": "Cancel payment request",
+      "confirm_cancel": "Are you sure you want to cancel this payment request?",
+      "modal_title": "Purchase course",
+      "modal_subtitle": "Transfer via one of the two channels, add the transaction info, then submit for admin review.",
+      "amount_due": "Amount due",
+      "bank_transfer": "Bank transfer",
+      "momo_phone": "MoMo phone",
+      "bank_name": "Bank",
+      "bank_account": "Account number",
+      "holder": "Account holder",
+      "transfer_note_hint": "Tip: put your email + course slug in the transfer memo so the admin can reconcile quickly.",
+      "note_label": "Transaction info (required)",
+      "note_placeholder": "E.g. MoMo 15:30 21/04, txn 1234567890, receipt: https://…",
+      "note_required": "Please paste your transaction info so the admin can reconcile.",
+      "cancel": "Cancel",
+      "submit_cta": "Submit for review",
+      "submit_failed": "Could not submit. Please retry."
+    }
   },
   "studio": {
     "title": "My courses",
@@ -192,6 +218,7 @@
     "sidebar": {
       "overview": "Overview",
       "courses": "Courses",
+      "payments": "Payments",
       "users": "Users",
       "metrics": "Metrics",
       "logout": "Sign out"
@@ -245,6 +272,34 @@
         "save": "Save",
         "saved": "Saved",
         "sign_in_required": "Please sign in."
+      }
+    }
+  },
+  "admin": {
+    "payments": {
+      "title": "Payment approvals",
+      "subtitle": "Review and manually approve student top-up requests.",
+      "admin_only": "Only admins can view this page.",
+      "empty": "No payments in this status.",
+      "col_user": "Student",
+      "col_course": "Course",
+      "col_amount": "Amount",
+      "col_method": "Method",
+      "col_note": "Student note",
+      "col_created_at": "Submitted",
+      "col_actions": "Actions",
+      "approve": "Approve",
+      "reject": "Reject",
+      "cancel": "Cancel",
+      "confirm_approve": "Confirm you've received the transfer and grant access?",
+      "default_reject_note": "Receipt did not match",
+      "reject_note_placeholder": "Reason for rejection (optional)…",
+      "confirm_reject": "Confirm rejection",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
       }
     }
   }

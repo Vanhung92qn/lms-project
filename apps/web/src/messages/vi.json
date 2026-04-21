@@ -171,7 +171,33 @@
     "login_to_enroll": "Đăng nhập để đăng ký",
     "enroll_failed": "Đăng ký thất bại. Vui lòng thử lại.",
     "go_dashboard": "Về bảng điều khiển",
-    "start_learning": "Bắt đầu học →"
+    "start_learning": "Bắt đầu học →",
+    "purchase": {
+      "buy_cta": "Mua khoá học · {price}",
+      "login_to_purchase": "Đăng nhập để mua",
+      "already_purchased": "Bạn đã mua khoá này",
+      "start_learning": "Bắt đầu học →",
+      "go_dashboard": "Về bảng điều khiển",
+      "pending_title": "Đang chờ admin duyệt",
+      "pending_body": "Chúng tôi sẽ xác nhận biên lai trong ít giờ tới. Bạn sẽ nhận được quyền truy cập khoá học ngay khi được duyệt.",
+      "cancel_payment": "Huỷ yêu cầu thanh toán",
+      "confirm_cancel": "Bạn chắc chắn muốn huỷ yêu cầu thanh toán này?",
+      "modal_title": "Thanh toán khoá học",
+      "modal_subtitle": "Chuyển khoản theo một trong hai kênh dưới, ghi mã giao dịch, sau đó gửi yêu cầu để admin duyệt.",
+      "amount_due": "Số tiền cần chuyển",
+      "bank_transfer": "Chuyển khoản NH",
+      "momo_phone": "Số điện thoại MoMo",
+      "bank_name": "Ngân hàng",
+      "bank_account": "Số tài khoản",
+      "holder": "Chủ tài khoản",
+      "transfer_note_hint": "Gợi ý: trong nội dung chuyển khoản ghi email của bạn + slug khoá học để admin đối chiếu nhanh.",
+      "note_label": "Thông tin giao dịch (bắt buộc)",
+      "note_placeholder": "Ví dụ: MoMo 15:30 21/04, mã giao dịch 1234567890, ảnh biên lai: https://…",
+      "note_required": "Vui lòng nhập thông tin giao dịch để admin đối chiếu.",
+      "cancel": "Huỷ",
+      "submit_cta": "Gửi yêu cầu duyệt",
+      "submit_failed": "Gửi yêu cầu thất bại. Vui lòng thử lại."
+    }
   },
   "studio": {
     "title": "Khoá học của tôi",
@@ -192,6 +218,7 @@
     "sidebar": {
       "overview": "Tổng quan",
       "courses": "Khoá học",
+      "payments": "Thanh toán",
       "users": "Người dùng",
       "metrics": "Thống kê",
       "logout": "Đăng xuất"
@@ -245,6 +272,34 @@
         "save": "Lưu",
         "saved": "Đã lưu",
         "sign_in_required": "Vui lòng đăng nhập."
+      }
+    }
+  },
+  "admin": {
+    "payments": {
+      "title": "Duyệt thanh toán",
+      "subtitle": "Xem và duyệt tay các yêu cầu nạp từ học viên.",
+      "admin_only": "Chỉ admin mới có quyền xem trang này.",
+      "empty": "Không có giao dịch nào ở trạng thái này.",
+      "col_user": "Học viên",
+      "col_course": "Khoá học",
+      "col_amount": "Số tiền",
+      "col_method": "Kênh",
+      "col_note": "Ghi chú HV",
+      "col_created_at": "Gửi lúc",
+      "col_actions": "Hành động",
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "cancel": "Huỷ",
+      "confirm_approve": "Xác nhận đã nhận được tiền và cấp quyền truy cập khoá học?",
+      "default_reject_note": "Không khớp biên lai",
+      "reject_note_placeholder": "Ghi chú lý do từ chối (tuỳ chọn)…",
+      "confirm_reject": "Xác nhận từ chối",
+      "status": {
+        "pending": "Đang chờ",
+        "approved": "Đã duyệt",
+        "rejected": "Từ chối",
+        "cancelled": "Đã huỷ"
       }
     }
   }
