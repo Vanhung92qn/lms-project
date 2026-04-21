@@ -10,6 +10,8 @@ import type {
   CreateLessonDto,
   CreateModuleDto,
   UpdateCourseDto,
+  UpdateLessonDto,
+  UpdateModuleDto,
 } from '../dto/update-course.dto';
 import type { AuthenticatedUser } from '../../iam/auth/auth.types';
 import type { CourseSummary } from '@lms/shared-types';
@@ -289,7 +291,126 @@ export class TeacherCoursesService {
     });
   }
 
+  async updateModule(
+    user: AuthenticatedUser,
+    courseId: string,
+    moduleId: string,
+    dto: UpdateModuleDto,
+  ) {
+    await this.assertOwn(user, courseId);
+    await this.assertModuleInCourse(courseId, moduleId);
+    return this.prisma.module.update({
+      where: { id: moduleId },
+      data: {
+        title: dto.title,
+        sortOrder: dto.sort_order,
+      },
+    });
+  }
+
+  async removeModule(user: AuthenticatedUser, courseId: string, moduleId: string) {
+    await this.assertOwn(user, courseId);
+    await this.assertModuleInCourse(courseId, moduleId);
+    // Cascades remove lessons → exercises → test cases (per schema). Orphan
+    // submissions remain — they're historical records the student may still
+    // want to see on their profile, so we leave them referencing the now-
+    // deleted lesson via ON DELETE CASCADE (which also removes submissions).
+    await this.prisma.module.delete({ where: { id: moduleId } });
+  }
+
+  async getLessonForEdit(
+    user: AuthenticatedUser,
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+  ) {
+    await this.assertOwn(user, courseId);
+    await this.assertLessonInModule(moduleId, lessonId, courseId);
+    const lesson = await this.prisma.lesson.findUniqueOrThrow({
+      where: { id: lessonId },
+      select: {
+        id: true,
+        title: true,
+        sortOrder: true,
+        type: true,
+        contentMarkdown: true,
+        estMinutes: true,
+      },
+    });
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      sort_order: lesson.sortOrder,
+      type: lesson.type,
+      content_markdown: lesson.contentMarkdown,
+      est_minutes: lesson.estMinutes,
+    };
+  }
+
+  async updateLesson(
+    user: AuthenticatedUser,
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    dto: UpdateLessonDto,
+  ) {
+    await this.assertOwn(user, courseId);
+    await this.assertLessonInModule(moduleId, lessonId, courseId);
+    return this.prisma.lesson.update({
+      where: { id: lessonId },
+      data: {
+        title: dto.title,
+        sortOrder: dto.sort_order,
+        type: dto.type,
+        contentMarkdown: dto.content_markdown,
+        estMinutes: dto.est_minutes,
+      },
+    });
+  }
+
+  async removeLesson(
+    user: AuthenticatedUser,
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+  ) {
+    await this.assertOwn(user, courseId);
+    await this.assertLessonInModule(moduleId, lessonId, courseId);
+    await this.prisma.lesson.delete({ where: { id: lessonId } });
+  }
+
   // ---------------------------------------------------------------------------
+
+  private async assertModuleInCourse(courseId: string, moduleId: string): Promise<void> {
+    const mod = await this.prisma.module.findUnique({
+      where: { id: moduleId },
+      select: { courseId: true },
+    });
+    if (!mod || mod.courseId !== courseId) {
+      throw new NotFoundException({
+        code: 'module_not_found',
+        message: 'Module not found in this course',
+      });
+    }
+  }
+
+  private async assertLessonInModule(
+    moduleId: string,
+    lessonId: string,
+    courseId: string,
+  ): Promise<void> {
+    await this.assertModuleInCourse(courseId, moduleId);
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      select: { moduleId: true },
+    });
+    if (!lesson || lesson.moduleId !== moduleId) {
+      throw new NotFoundException({
+        code: 'lesson_not_found',
+        message: 'Lesson not found in this module',
+      });
+    }
+  }
 
   private async assertOwn(user: AuthenticatedUser, courseId: string): Promise<void> {
     const course = await this.prisma.course.findUnique({

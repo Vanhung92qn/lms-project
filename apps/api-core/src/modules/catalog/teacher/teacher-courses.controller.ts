@@ -20,6 +20,8 @@ import {
   CreateLessonDto,
   CreateModuleDto,
   UpdateCourseDto,
+  UpdateLessonDto,
+  UpdateModuleDto,
 } from '../dto/update-course.dto';
 
 // Every endpoint here requires an authenticated teacher or admin. Students who
@@ -114,6 +116,70 @@ export class TeacherCoursesController {
   ) {
     this.requireTeacher(user);
     return this.courses.addLesson(user, courseId, moduleId, dto);
+  }
+
+  @Patch(':id/modules/:moduleId')
+  @ApiOperation({ summary: 'Update a module (title, sort order)' })
+  updateModule(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') courseId: string,
+    @Param('moduleId') moduleId: string,
+    @Body() dto: UpdateModuleDto,
+  ) {
+    this.requireTeacher(user);
+    return this.courses.updateModule(user, courseId, moduleId, dto);
+  }
+
+  @Delete(':id/modules/:moduleId')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Delete a module (cascades lessons, exercises, submissions)' })
+  async removeModule(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') courseId: string,
+    @Param('moduleId') moduleId: string,
+  ): Promise<void> {
+    this.requireTeacher(user);
+    await this.courses.removeModule(user, courseId, moduleId);
+  }
+
+  @Get(':id/modules/:moduleId/lessons/:lessonId')
+  @ApiOperation({ summary: 'Fetch a single lesson in full (includes content_markdown) for editing' })
+  getLesson(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') courseId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('lessonId') lessonId: string,
+  ) {
+    this.requireTeacher(user);
+    return this.courses.getLessonForEdit(user, courseId, moduleId, lessonId);
+  }
+
+  @Patch(':id/modules/:moduleId/lessons/:lessonId')
+  @ApiOperation({
+    summary: 'Update a lesson (title, content, type, estimated minutes)',
+  })
+  updateLesson(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') courseId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('lessonId') lessonId: string,
+    @Body() dto: UpdateLessonDto,
+  ) {
+    this.requireTeacher(user);
+    return this.courses.updateLesson(user, courseId, moduleId, lessonId, dto);
+  }
+
+  @Delete(':id/modules/:moduleId/lessons/:lessonId')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Delete a lesson (cascades exercise + submissions)' })
+  async removeLesson(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') courseId: string,
+    @Param('moduleId') moduleId: string,
+    @Param('lessonId') lessonId: string,
+  ): Promise<void> {
+    this.requireTeacher(user);
+    await this.courses.removeLesson(user, courseId, moduleId, lessonId);
   }
 
   private requireTeacher(user: AuthenticatedUser): void {

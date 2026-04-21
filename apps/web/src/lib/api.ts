@@ -394,6 +394,59 @@ export const api = {
         body: JSON.stringify(dto),
         headers: authHeaders(token),
       }),
+    updateModule: (
+      token: string,
+      courseId: string,
+      moduleId: string,
+      dto: { title?: string; sort_order?: number },
+    ) =>
+      request<{ id: string }>(`/teacher/courses/${courseId}/modules/${moduleId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+    removeModule: (token: string, courseId: string, moduleId: string) =>
+      request<void>(`/teacher/courses/${courseId}/modules/${moduleId}`, {
+        method: 'DELETE',
+        headers: authHeaders(token),
+      }),
+    getLesson: (token: string, courseId: string, moduleId: string, lessonId: string) =>
+      request<{
+        id: string;
+        title: string;
+        sort_order: number;
+        type: 'markdown' | 'exercise' | 'quiz';
+        content_markdown: string | null;
+        est_minutes: number | null;
+      }>(`/teacher/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`, {
+        headers: authHeaders(token),
+      }),
+    updateLesson: (
+      token: string,
+      courseId: string,
+      moduleId: string,
+      lessonId: string,
+      dto: Partial<{
+        title: string;
+        sort_order: number;
+        type: 'markdown' | 'exercise' | 'quiz';
+        content_markdown: string;
+        est_minutes: number;
+      }>,
+    ) =>
+      request<{ id: string }>(
+        `/teacher/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(dto),
+          headers: authHeaders(token),
+        },
+      ),
+    removeLesson: (token: string, courseId: string, moduleId: string, lessonId: string) =>
+      request<void>(
+        `/teacher/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`,
+        { method: 'DELETE', headers: authHeaders(token) },
+      ),
   },
 
   // Lesson micro-check quiz + completion tracking (P9.0, refined).

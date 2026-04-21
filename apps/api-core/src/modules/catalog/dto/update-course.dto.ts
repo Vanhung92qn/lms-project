@@ -69,3 +69,52 @@ export class CreateLessonDto {
   @Min(1)
   est_minutes?: number;
 }
+
+// Module edit DTO — title + sort_order optional. Backend ignores any
+// field not provided (partial update).
+export class UpdateModuleDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Length(2, 120)
+  title?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sort_order?: number;
+}
+
+// Lesson edit DTO — every authoring-relevant field optional. `type` stays
+// here so admins can fix a lesson that was created with the wrong type.
+export class UpdateLessonDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Length(2, 160)
+  title?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sort_order?: number;
+
+  @ApiProperty({ required: false, enum: ['markdown', 'exercise', 'quiz'] })
+  @IsOptional()
+  @IsIn(['markdown', 'exercise', 'quiz'])
+  type?: 'markdown' | 'exercise' | 'quiz';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Length(0, 64 * 1024)
+  content_markdown?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  est_minutes?: number;
+}
