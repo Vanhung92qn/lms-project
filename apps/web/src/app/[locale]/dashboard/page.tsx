@@ -7,6 +7,7 @@ import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import type { CourseSummary } from '@lms/shared-types';
 import { MasteryWidget } from './MasteryWidget';
+import { RecommendationsWidget } from './RecommendationsWidget';
 
 // Student dashboard. Session state (user profile) comes from SessionProvider;
 // enrolled courses are fetched from /me/enrollments once we have a token.
@@ -70,12 +71,15 @@ export default function DashboardPage() {
       ) : coursesLoading ? (
         <div className="card text-center text-text-muted">…</div>
       ) : courses.length === 0 ? (
-        <div className="card flex flex-col items-center gap-4 py-16 text-center">
-          <p className="text-text-muted">{t('no_courses')}</p>
-          <Link href="/courses" className="btn">
-            {tCat('browse')}
-          </Link>
-        </div>
+        <>
+          <div className="card flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-text-muted">{t('no_courses')}</p>
+            <Link href="/courses" className="btn">
+              {tCat('browse')}
+            </Link>
+          </div>
+          <RecommendationsWidget />
+        </>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between">
@@ -107,6 +111,7 @@ export default function DashboardPage() {
             ))}
           </section>
           <MasteryWidget />
+          <RecommendationsWidget />
         </>
       )}
     </main>

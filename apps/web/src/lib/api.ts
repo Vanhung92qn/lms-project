@@ -201,12 +201,70 @@ export const api = {
     },
   },
 
+  // Admin (P7) — role-gated server-side.
+  admin: {
+    metrics: (token: string) =>
+      request<{
+        users: { total: number; active: number; locked: number; byRole: Record<string, number> };
+        courses: { total: number; published: number; draft: number; freeCount: number; paidCount: number };
+        submissions: { total: number; ac: number; last7d: number };
+        revenue: {
+          approvedTopupCents: number;
+          approvedTopupCount: number;
+          pendingTopupCents: number;
+          pendingTopupCount: number;
+          walletLiabilityCents: number;
+        };
+      }>('/admin/metrics', { headers: authHeaders(token) }),
+    listUsers: (
+      token: string,
+      params?: { q?: string; role?: string; status?: 'active' | 'locked' | 'pending' },
+    ) => {
+      const qs = new URLSearchParams();
+      if (params?.q) qs.set('q', params.q);
+      if (params?.role) qs.set('role', params.role);
+      if (params?.status) qs.set('status', params.status);
+      const s = qs.toString();
+      return request<
+        Array<{
+          id: string;
+          email: string;
+          displayName: string;
+          avatarUrl: string | null;
+          locale: string;
+          status: 'active' | 'locked' | 'pending';
+          roles: string[];
+          walletBalanceCents: number;
+          createdAt: string;
+        }>
+      >(`/admin/users${s ? `?${s}` : ''}`, { headers: authHeaders(token) });
+    },
+    setUserStatus: (token: string, id: string, status: 'active' | 'locked') =>
+      request<unknown>(`/admin/users/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+        headers: authHeaders(token),
+      }),
+  },
+
   // Knowledge Graph (P5b/c) ---------------------------------------------
   knowledge: {
     listNodes: (domain?: string) =>
       request<Array<{ id: string; slug: string; title: string; domain: string }>>(
         `/knowledge/nodes${domain ? `?domain=${encodeURIComponent(domain)}` : ''}`,
       ),
+    myRecommendations: (token: string) =>
+      request<
+        Array<{
+          id: string;
+          slug: string;
+          title: string;
+          description: string | null;
+          pricingModel: 'free' | 'paid';
+          priceCents: number | null;
+          matchedNodes: string[];
+        }>
+      >('/knowledge/me/recommendations', { headers: authHeaders(token) }),
     myMastery: (token: string) =>
       request<
         Array<{
@@ -291,6 +349,28 @@ export const api = {
         method: 'POST',
         headers: authHeaders(token),
       }),
+    analytics: (token: string, id: string) =>
+      request<{
+        enrollmentCount: number;
+        uniqueSubmitters: number;
+        totalSubmissions: number;
+        acSubmissions: number;
+        acRate: number;
+        perLesson: Array<{
+          lessonId: string;
+          lessonTitle: string;
+          totalSubmissions: number;
+          acSubmissions: number;
+          acRate: number;
+          knowledgeNodes: string[];
+        }>;
+        weakestConcepts: Array<{
+          slug: string;
+          title: string;
+          totalSubmissions: number;
+          acRate: number;
+        }>;
+      }>(`/teacher/courses/${id}/analytics`, { headers: authHeaders(token) }),
     addModule: (token: string, courseId: string, dto: { title: string; sort_order: number }) =>
       request<{ id: string }>(`/teacher/courses/${courseId}/modules`, {
         method: 'POST',
