@@ -54,6 +54,27 @@ export class KnowledgeController {
     return this.svc.listMastery(user.id);
   }
 
+  /** Public — current knowledge-node slugs tagged on a lesson. Used by
+   * the Studio editor to pre-fill the picker; exposed publicly because
+   * it only leaks concept metadata, not enrolment state. */
+  @Get('lessons/:lessonId/tags')
+  @ApiOperation({ summary: 'Knowledge-node slugs currently tagged on a lesson' })
+  async lessonTags(@Param('lessonId', new ParseUUIDPipe()) lessonId: string) {
+    return { tags: await this.svc.lessonTags(lessonId) };
+  }
+
+  /** Student-scoped: suggest what to learn next after finishing this lesson. */
+  @Get('lessons/:lessonId/next-suggestion')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suggest the next lesson (prereq-gated by mastery)' })
+  nextSuggestion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('lessonId', new ParseUUIDPipe()) lessonId: string,
+  ) {
+    return this.svc.suggestNextLesson(user.id, lessonId);
+  }
+
   /** Teacher-scoped: replace the knowledge tags on a lesson they own. */
   @Put('lessons/:lessonId/tags')
   @UseGuards(JwtAuthGuard)

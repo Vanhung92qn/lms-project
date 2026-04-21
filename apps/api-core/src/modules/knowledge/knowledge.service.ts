@@ -80,6 +80,107 @@ export class KnowledgeService {
     }));
   }
 
+  /** Return the current node slugs tagged on a lesson. Public because
+   * it only exposes knowledge metadata, not enrolment state — the
+   * Studio editor calls it to pre-fill the picker, and the lesson
+   * player may eventually surface "this lesson covers" chips. */
+  async lessonTags(lessonId: string): Promise<string[]> {
+    const rows = await this.prisma.lessonKnowledgeNode.findMany({
+      where: { lessonId },
+      include: { node: { select: { slug: true } } },
+    });
+    return rows.map((r) => r.node.slug);
+  }
+
+  /**
+   * Suggest a next lesson for a student who just finished `lessonId`.
+   *
+   * Walk the course in (module, lesson) order and pick the first lesson
+   * after the current one whose knowledge-node prerequisites are all
+   * mastered (score ≥ 0.5). If every remaining lesson is gated by a
+   * weak prereq, fall back to the immediate next lesson with a flag so
+   * the UI can warn the student. Returns null when the student has
+   * reached the end of the course.
+   */
+  async suggestNextLesson(
+    userId: string,
+    lessonId: string,
+  ): Promise<
+    | { lessonId: string; title: string; courseSlug: string; gatedByPrereq: boolean }
+    | null
+  > {
+    const current = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      select: {
+        module: {
+          select: {
+            courseId: true,
+            course: { select: { slug: true } },
+          },
+        },
+      },
+    });
+    if (!current) return null;
+
+    // Flatten every lesson in the course into a stable (module, lesson)
+    // order. Could be done with a single ordered query using module.sortOrder
+    // + lesson.sortOrder, but Prisma's nested orderBy would need raw SQL.
+    const modules = await this.prisma.module.findMany({
+      where: { courseId: current.module.courseId },
+      orderBy: { sortOrder: 'asc' },
+      include: { lessons: { orderBy: { sortOrder: 'asc' }, select: { id: true, title: true } } },
+    });
+    const ordered = modules.flatMap((m) => m.lessons);
+    const currentIdx = ordered.findIndex((l) => l.id === lessonId);
+    const rest = currentIdx >= 0 ? ordered.slice(currentIdx + 1) : [];
+    if (rest.length === 0) return null;
+
+    const masteryRows = await this.prisma.userMastery.findMany({
+      where: { userId },
+      select: { nodeId: true, score: true },
+    });
+    const masteryByNode = new Map(masteryRows.map((m) => [m.nodeId, Number(m.score)]));
+
+    for (const cand of rest) {
+      const tags = await this.prisma.lessonKnowledgeNode.findMany({
+        where: { lessonId: cand.id },
+        select: { nodeId: true },
+      });
+      // Untagged lesson — no gating possible, hand it through.
+      if (tags.length === 0) {
+        return {
+          lessonId: cand.id,
+          title: cand.title,
+          courseSlug: current.module.course.slug,
+          gatedByPrereq: false,
+        };
+      }
+      const prereqs = await this.prisma.knowledgeEdge.findMany({
+        where: { relation: 'prereq', toId: { in: tags.map((t) => t.nodeId) } },
+        select: { fromId: true },
+      });
+      const blocked = prereqs.some((e) => (masteryByNode.get(e.fromId) ?? 0) < 0.5);
+      if (!blocked) {
+        return {
+          lessonId: cand.id,
+          title: cand.title,
+          courseSlug: current.module.course.slug,
+          gatedByPrereq: false,
+        };
+      }
+    }
+
+    // All remaining lessons are gated — surface the immediate next with
+    // a flag so the UI can show a "you may want to review X first" hint.
+    const next = rest[0];
+    return {
+      lessonId: next.id,
+      title: next.title,
+      courseSlug: current.module.course.slug,
+      gatedByPrereq: true,
+    };
+  }
+
   /** Teacher-side: replace the knowledge tags on a lesson. The lesson's
    * owning course teacher_id must match `teacherId`; we throw 404 rather
    * than 403 to avoid leaking lesson existence to non-owners. */
