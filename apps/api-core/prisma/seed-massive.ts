@@ -6,24 +6,30 @@
  * Produces:
  *   - 1 teacher account `mass-teacher@demo.khohoc.online` (owns all demo
  *     courses so the main Studio belongs to `teacher@khohoc.online`)
- *   - 20 courses (slug prefix `demo-`) across cpp / python / algo / web
+ *   - 20 courses (slug prefix `demo-`) across 3 flavours:
+ *       · CONSOLIDATED HANDS-ON: 2 C++ tracks (Cơ bản / Nâng cao) with
+ *         many lessons each, plus C / Python / JS
+ *       · THEORY-ONLY (markdown + auto-gen quiz): HTML, CSS, Kỹ thuật
+ *         phần mềm, Mạng máy tính, Cơ sở dữ liệu, Tư duy OOP, Tư duy
+ *         giải thuật — feed the BKT engine via quiz_attempts, not code
+ *       · APPLIED: DSA, Flask, DOM, interview prep, Clean Code
  *   - 500 virtual students with the email pattern
  *     `massive-student-NNNN@demo.khohoc.online`
- *   - 2 000 random enrolments (≈4 courses per student)
- *   - ≈50 000 submissions spread over the last 45 days, with verdict
- *     distributions driven by a per-student archetype
+ *   - 2 000+ random enrolments (3–6 courses per student)
+ *   - ≈50 000 submissions over the last 45 days, verdict distributions
+ *     driven by a per-student archetype
  *   - user_mastery rows directly inserted for every (student × relevant
  *     knowledge node) pair — we skip the data-science BKT rebuild
  *     (500 × ~2s per user > 15 min) and derive a BKT-shaped score from
- *     the student's AC rate on that node instead. Same shape, same UI.
+ *     the student's AC rate on that node instead.
  *
  * Run:
- *   pnpm --filter api-core exec ts-node --transpile-only prisma/seed-massive.ts
- *   pnpm --filter api-core exec ts-node --transpile-only prisma/seed-massive.ts -- --force
+ *   pnpm --filter api-core db:seed:massive
+ *   pnpm --filter api-core db:seed:massive -- --force
  *
- * Idempotent: detects a sentinel user and bails out unless `--force` is
- * passed, in which case all `@demo.khohoc.online` users and `demo-*`
- * courses are removed first (cascades wipe their submissions/mastery too).
+ * Idempotent: detects a sentinel user and bails unless `--force` is passed,
+ * in which case every `@demo.khohoc.online` user and `demo-*` course is
+ * removed first (cascades wipe their submissions, enrolments, mastery).
  *
  * NEVER run in production — these accounts ship a shared trivial password.
  */
@@ -68,9 +74,16 @@ const randInt = (lo: number, hi: number) => Math.floor(rand() * (hi - lo + 1)) +
 const pick = <T>(arr: T[]): T => arr[Math.floor(rand() * arr.length)]!;
 
 // ---------------------------------------------------------------------------
-// Course catalog (20 courses). `nodes` lists the knowledge-node slugs each
-// course exercises — must exist in the main seed's KNOWLEDGE_NODES list or
-// be added via the `extraNodes` block below.
+// Course catalog — 20 courses designed for diversity:
+//   · 2 C++ tracks (consolidated, many lessons each)
+//   · C, Python (2), JS (2), HTML, CSS
+//   · 5 theory-only courses (Kỹ thuật phần mềm, Mạng, DB, OOP, Giải thuật)
+//   · 3 applied (DSA foundation, Interview prep, Clean Code, English intro)
+//
+// Each lesson is declared by a `topic` string; `lessonContent()` turns the
+// topic into ~500-char Vietnamese markdown with embedded code blocks where
+// the course has a language. Theory-only courses produce markdown-only
+// lessons that flow through the auto-gen quiz pipeline (P9.0).
 // ---------------------------------------------------------------------------
 
 interface CourseSpec {
@@ -78,58 +91,927 @@ interface CourseSpec {
   title: string;
   description: string;
   locale: 'vi' | 'en';
-  language: CodeLanguage;
+  language?: CodeLanguage; // omitted = theory-only (no exercises, quiz-gated)
   nodes: string[];
   pricingModel: 'free' | 'paid';
   priceVnd?: number;
+  modules: Array<{
+    title: string;
+    lessons: string[]; // topic keywords, one per lesson
+  }>;
 }
 
 const COURSES: CourseSpec[] = [
-  { slug: 'demo-cpp-basics',       title: 'C++ cơ bản — Từ cú pháp tới vòng lặp', description: 'Nền móng C++: biến, toán tử, điều kiện, vòng lặp — bài tập sandbox liên tục.', locale: 'vi', language: 'cpp', nodes: ['io-basics', 'variables-types', 'operators', 'control-flow', 'loops'], pricingModel: 'free' },
-  { slug: 'demo-cpp-functions',    title: 'Hàm và Mảng trong C++',                description: 'Học cách viết hàm sạch, truyền tham số và làm việc với mảng một chiều.',        locale: 'vi', language: 'cpp', nodes: ['functions', 'arrays'], pricingModel: 'free' },
-  { slug: 'demo-cpp-pointers',     title: 'Con trỏ & Tham chiếu C++',              description: 'Con trỏ là tảng đá — vượt qua là C++ mở cửa hoàn toàn.',                      locale: 'vi', language: 'cpp', nodes: ['pointers', 'arrays', 'strings'], pricingModel: 'paid', priceVnd: 199_000 },
-  { slug: 'demo-cpp-recursion',    title: 'Đệ quy & Tư duy chia để trị',           description: 'Đệ quy qua 20 ví dụ thực tế, từ Fibonacci tới quét mê cung.',                 locale: 'vi', language: 'cpp', nodes: ['recursion', 'functions'], pricingModel: 'paid', priceVnd: 149_000 },
-  { slug: 'demo-cpp-oop',          title: 'OOP với C++',                           description: 'Lớp, đối tượng, kế thừa, đa hình — case study quản lý thư viện.',            locale: 'vi', language: 'cpp', nodes: ['oop-basics', 'oop-inheritance', 'functions'], pricingModel: 'paid', priceVnd: 249_000 },
-  { slug: 'demo-cpp-stl',          title: 'STL thực chiến',                        description: 'vector, map, set, algorithm — dùng đúng STL để code ngắn gấp 3.',            locale: 'vi', language: 'cpp', nodes: ['arrays', 'strings', 'ds-stack-queue'], pricingModel: 'paid', priceVnd: 199_000 },
+  // ---- C++ (consolidated: 2 deep courses) ---------------------------------
+  {
+    slug: 'demo-cpp-fundamentals',
+    title: 'C++ Cơ bản — Từ zero đến thành thạo',
+    description:
+      'Khoá nền tảng C++ hoàn chỉnh: cú pháp, biến, điều kiện, vòng lặp, hàm, mảng, chuỗi, con trỏ. Học bằng cách gõ code — mỗi bài đều có sandbox chấm tự động.',
+    locale: 'vi',
+    language: 'cpp',
+    pricingModel: 'free',
+    nodes: ['io-basics', 'variables-types', 'operators', 'control-flow', 'loops', 'functions', 'arrays', 'strings'],
+    modules: [
+      {
+        title: 'Chương 1 — Bắt đầu với C++',
+        lessons: [
+          'Giới thiệu C++ và môi trường biên dịch',
+          'Chương trình C++ đầu tiên (Hello World)',
+          'Câu lệnh nhập xuất cơ bản (cin, cout)',
+          'Comment và quy tắc viết code',
+          'Biên dịch và lỗi compile thường gặp',
+        ],
+      },
+      {
+        title: 'Chương 2 — Biến, kiểu dữ liệu và toán tử',
+        lessons: [
+          'Biến và kiểu dữ liệu nguyên thuỷ',
+          'Kiểu số nguyên (int, long, short)',
+          'Kiểu số thực (float, double)',
+          'Kiểu ký tự và chuỗi (char, string)',
+          'Toán tử số học và gán',
+          'Toán tử so sánh và logic',
+        ],
+      },
+      {
+        title: 'Chương 3 — Điều khiển luồng',
+        lessons: [
+          'Câu lệnh if và if-else',
+          'Câu lệnh if lồng nhau',
+          'Câu lệnh switch-case',
+          'Vòng lặp while và do-while',
+          'Vòng lặp for',
+          'Break và continue',
+        ],
+      },
+      {
+        title: 'Chương 4 — Hàm và tham số',
+        lessons: [
+          'Khai báo và gọi hàm',
+          'Tham số và giá trị trả về',
+          'Tham chiếu và pass-by-reference',
+          'Hàm nạp chồng (overloading)',
+          'Đệ quy căn bản',
+        ],
+      },
+      {
+        title: 'Chương 5 — Mảng và chuỗi',
+        lessons: [
+          'Mảng một chiều',
+          'Truy cập và duyệt mảng',
+          'Mảng và hàm',
+          'Chuỗi ký tự (std::string)',
+          'Các hàm xử lý chuỗi thường dùng',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-cpp-advanced',
+    title: 'C++ Nâng cao — OOP, Con trỏ & STL',
+    description:
+      'Trình độ trung cấp: con trỏ sâu, quản lý bộ nhớ, OOP đầy đủ (kế thừa, đa hình), template và STL (vector, map, algorithm). Case study: project quản lý thư viện mini.',
+    locale: 'vi',
+    language: 'cpp',
+    pricingModel: 'paid',
+    priceVnd: 299_000,
+    nodes: ['pointers', 'recursion', 'oop-basics', 'oop-inheritance', 'arrays', 'strings', 'ds-stack-queue'],
+    modules: [
+      {
+        title: 'Chương 1 — Con trỏ & bộ nhớ',
+        lessons: [
+          'Con trỏ là gì và tại sao cần',
+          'Khai báo và sử dụng con trỏ',
+          'Con trỏ và mảng',
+          'Cấp phát động với new/delete',
+          'Smart pointers (unique_ptr, shared_ptr)',
+        ],
+      },
+      {
+        title: 'Chương 2 — Đệ quy nâng cao',
+        lessons: [
+          'Tư duy đệ quy',
+          'Fibonacci và memoization',
+          'Quy hoạch động qua đệ quy',
+          'Chia để trị (divide and conquer)',
+        ],
+      },
+      {
+        title: 'Chương 3 — Lập trình hướng đối tượng',
+        lessons: [
+          'Class và object',
+          'Constructor và destructor',
+          'Encapsulation: private/public/protected',
+          'Kế thừa (inheritance)',
+          'Đa hình (polymorphism)',
+          'Virtual function và abstract class',
+        ],
+      },
+      {
+        title: 'Chương 4 — Template & Generic',
+        lessons: [
+          'Function template',
+          'Class template',
+          'Template specialisation',
+          'Khi nào dùng template',
+        ],
+      },
+      {
+        title: 'Chương 5 — STL thực chiến',
+        lessons: [
+          'std::vector — cơ bản tới nâng cao',
+          'std::map và std::set',
+          'std::stack và std::queue',
+          'Thuật toán STL: sort, find, transform',
+          'Iterator: input, output, bidirectional',
+        ],
+      },
+    ],
+  },
 
-  { slug: 'demo-algo-sorting',     title: 'Thuật toán sắp xếp từ A đến Z',         description: 'Bubble, merge, quick, heap — cả độ phức tạp và khi nào dùng gì.',             locale: 'vi', language: 'cpp', nodes: ['algo-sorting', 'arrays'], pricingModel: 'paid', priceVnd: 249_000 },
-  { slug: 'demo-algo-searching',   title: 'Tìm kiếm tuyến tính & nhị phân',        description: 'Binary search bẻ khoá chục bài phỏng vấn — làm chuẩn một lần, nhớ cả đời.', locale: 'vi', language: 'cpp', nodes: ['algo-searching', 'arrays', 'loops'], pricingModel: 'free' },
-  { slug: 'demo-algo-dp-intro',    title: 'Quy hoạch động nhập môn',               description: 'Tiếp cận DP qua 10 bài cổ điển: coin change, LIS, knapsack.',                 locale: 'vi', language: 'cpp', nodes: ['recursion', 'arrays', 'algo-sorting'], pricingModel: 'paid', priceVnd: 299_000 },
-  { slug: 'demo-algo-graph',       title: 'Đồ thị & BFS/DFS',                      description: 'Làm chủ biểu diễn đồ thị, BFS, DFS, và bài toán shortest path.',              locale: 'vi', language: 'cpp', nodes: ['recursion', 'ds-stack-queue'], pricingModel: 'paid', priceVnd: 249_000 },
-  { slug: 'demo-ds-stack-queue',   title: 'Stack, Queue và ứng dụng',              description: 'Từ khung thuật toán tới parser biểu thức.',                                    locale: 'vi', language: 'cpp', nodes: ['ds-stack-queue', 'arrays'], pricingModel: 'free' },
+  // ---- C language ---------------------------------------------------------
+  {
+    slug: 'demo-c-intro',
+    title: 'Lập trình C cho người mới bắt đầu',
+    description:
+      'Ngôn ngữ C nền tảng của mọi ngôn ngữ hệ thống. Cú pháp, con trỏ, struct, file I/O — kiến thức cần cho kỹ sư embedded / systems.',
+    locale: 'vi',
+    language: 'c',
+    pricingModel: 'free',
+    nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions', 'pointers', 'arrays'],
+    modules: [
+      {
+        title: 'Chương 1 — C cơ bản',
+        lessons: [
+          'Chương trình C đầu tiên',
+          'Biến và kiểu dữ liệu trong C',
+          'printf và scanf',
+          'Toán tử và biểu thức',
+        ],
+      },
+      {
+        title: 'Chương 2 — Luồng điều khiển',
+        lessons: [
+          'Câu lệnh if-else',
+          'Vòng lặp for và while',
+          'Hàm trong C',
+          'Đệ quy cơ bản',
+        ],
+      },
+      {
+        title: 'Chương 3 — Con trỏ và mảng',
+        lessons: [
+          'Con trỏ trong C',
+          'Mảng và con trỏ',
+          'Cấp phát động với malloc/free',
+          'Chuỗi ký tự trong C',
+        ],
+      },
+      {
+        title: 'Chương 4 — Struct & File I/O',
+        lessons: [
+          'Struct trong C',
+          'Typedef và struct',
+          'Đọc ghi file',
+        ],
+      },
+    ],
+  },
 
-  { slug: 'demo-python-intro',     title: 'Python cho người bắt đầu',              description: 'Cú pháp Python, list, dictionary, hàm, đọc ghi file.',                        locale: 'vi', language: 'python', nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions'], pricingModel: 'free' },
-  { slug: 'demo-python-data',      title: 'Python cho phân tích dữ liệu',          description: 'pandas, matplotlib, numpy — làm project EDA đầu tay.',                         locale: 'vi', language: 'python', nodes: ['arrays', 'functions', 'loops'], pricingModel: 'paid', priceVnd: 349_000 },
-  { slug: 'demo-python-web',       title: 'Flask & REST API',                       description: 'Xây REST API đầu tiên với Flask + SQLite + testing.',                          locale: 'vi', language: 'python', nodes: ['functions', 'strings'], pricingModel: 'paid', priceVnd: 299_000 },
+  // ---- Python (2 courses) -------------------------------------------------
+  {
+    slug: 'demo-python-fundamentals',
+    title: 'Python cho người mới bắt đầu',
+    description:
+      'Khoá Python hoàn chỉnh từ zero. Cú pháp đơn giản, list, dictionary, hàm, OOP, xử lý file. Python là ngôn ngữ dễ học nhất và được dùng rộng rãi nhất hiện nay.',
+    locale: 'vi',
+    language: 'python',
+    pricingModel: 'free',
+    nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions', 'arrays', 'strings'],
+    modules: [
+      {
+        title: 'Chương 1 — Python cơ bản',
+        lessons: [
+          'Giới thiệu Python và cài đặt',
+          'Chương trình Python đầu tiên',
+          'Biến và kiểu dữ liệu cơ bản',
+          'Nhập xuất với print và input',
+          'Comment và PEP 8',
+        ],
+      },
+      {
+        title: 'Chương 2 — Điều khiển luồng',
+        lessons: [
+          'if-elif-else',
+          'Vòng lặp for',
+          'Vòng lặp while',
+          'break, continue, pass',
+        ],
+      },
+      {
+        title: 'Chương 3 — Cấu trúc dữ liệu',
+        lessons: [
+          'List và các thao tác',
+          'Tuple và khi nào dùng',
+          'Dictionary — bảng băm của Python',
+          'Set — tập hợp không trùng',
+          'List comprehension',
+        ],
+      },
+      {
+        title: 'Chương 4 — Hàm & Module',
+        lessons: [
+          'Định nghĩa hàm với def',
+          'Tham số default và keyword',
+          '*args và **kwargs',
+          'Lambda function',
+          'Import và module',
+        ],
+      },
+      {
+        title: 'Chương 5 — Xử lý file & Exception',
+        lessons: [
+          'Đọc ghi file text',
+          'Context manager với with',
+          'Try-except-finally',
+          'Custom exception',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-python-data',
+    title: 'Python cho phân tích dữ liệu',
+    description:
+      'pandas, numpy, matplotlib — toolbox chuẩn cho data analyst. Học qua 3 project thực tế: phân tích doanh số, phân tích hành vi user, visualise COVID.',
+    locale: 'vi',
+    language: 'python',
+    pricingModel: 'paid',
+    priceVnd: 349_000,
+    nodes: ['arrays', 'functions', 'loops'],
+    modules: [
+      {
+        title: 'Chương 1 — numpy',
+        lessons: ['Array và dtype', 'Slicing và indexing', 'Vector hoá với numpy', 'Broadcasting'],
+      },
+      {
+        title: 'Chương 2 — pandas',
+        lessons: ['Series và DataFrame', 'Đọc CSV và Excel', 'Filter và sort', 'Group by và aggregate', 'Merge và join'],
+      },
+      {
+        title: 'Chương 3 — Visualisation',
+        lessons: ['matplotlib cơ bản', 'Biểu đồ đường và cột', 'Heatmap và scatter', 'Seaborn cho thống kê'],
+      },
+    ],
+  },
 
-  { slug: 'demo-js-basics',        title: 'JavaScript hiện đại',                    description: 'ES6+, const/let, arrow, async — nền tảng cho React/Node.',                    locale: 'vi', language: 'js', nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions'], pricingModel: 'free' },
-  { slug: 'demo-js-dom',           title: 'Tương tác DOM & Event',                  description: 'Thao tác DOM tinh gọn và xử lý event không cần framework.',                     locale: 'vi', language: 'js', nodes: ['functions', 'strings'], pricingModel: 'paid', priceVnd: 199_000 },
-  { slug: 'demo-js-async',         title: 'Async/Await trong JavaScript',           description: 'Callback → Promise → async/await, Promise.all, error handling.',               locale: 'vi', language: 'js', nodes: ['functions', 'recursion'], pricingModel: 'paid', priceVnd: 249_000 },
+  // ---- JavaScript ---------------------------------------------------------
+  {
+    slug: 'demo-js-modern',
+    title: 'JavaScript hiện đại (ES6+)',
+    description:
+      'JS từ cú pháp ES6 đến module, async, class. Đủ nền tảng để bước vào React/Vue hay Node.js backend.',
+    locale: 'vi',
+    language: 'js',
+    pricingModel: 'free',
+    nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions', 'arrays', 'strings'],
+    modules: [
+      {
+        title: 'Chương 1 — JS cơ bản',
+        lessons: [
+          'var, let, const — sự khác biệt',
+          'Template literal',
+          'Destructuring object và array',
+          'Spread và rest operator',
+        ],
+      },
+      {
+        title: 'Chương 2 — Function & Scope',
+        lessons: [
+          'Arrow function',
+          'Closure và lexical scope',
+          'Default parameter',
+          'this binding',
+        ],
+      },
+      {
+        title: 'Chương 3 — Collection',
+        lessons: [
+          'Array methods: map, filter, reduce',
+          'Object.keys / values / entries',
+          'Set và Map',
+          'Spread trong array và object',
+        ],
+      },
+      {
+        title: 'Chương 4 — Module & Class',
+        lessons: [
+          'ES6 module: import/export',
+          'Class syntax',
+          'Kế thừa với extends',
+          'Getter và setter',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-js-async',
+    title: 'Async JavaScript & Promises',
+    description:
+      'Callback hell → Promise → async/await. Xử lý lỗi, Promise.all, race condition và pattern xử lý API đồng thời.',
+    locale: 'vi',
+    language: 'js',
+    pricingModel: 'paid',
+    priceVnd: 249_000,
+    nodes: ['functions', 'recursion'],
+    modules: [
+      {
+        title: 'Chương 1 — Từ Callback tới Promise',
+        lessons: ['Callback và callback hell', 'Promise là gì', 'Promise chain', 'Xử lý lỗi với catch'],
+      },
+      {
+        title: 'Chương 2 — async/await',
+        lessons: ['Cú pháp async/await', 'try/catch với await', 'Promise.all và Promise.race', 'Top-level await'],
+      },
+    ],
+  },
 
-  { slug: 'demo-interview-prep',   title: 'Tuyển tập 50 bài phỏng vấn C++',         description: 'Array, string, tree, graph — mọi công ty tech đều hỏi một biến thể.',          locale: 'vi', language: 'cpp', nodes: ['arrays', 'strings', 'algo-sorting', 'algo-searching', 'recursion'], pricingModel: 'paid', priceVnd: 399_000 },
-  { slug: 'demo-code-smell',       title: 'Clean Code với ví dụ C++',               description: 'Refactor một codebase 1 000 LOC thành clean — tránh 10 code smell hay gặp.',   locale: 'vi', language: 'cpp', nodes: ['functions', 'oop-basics'], pricingModel: 'paid', priceVnd: 249_000 },
-  { slug: 'demo-english-prog',     title: 'Intro to Programming in C++',            description: 'English-taught entry into programming — variables, control flow, functions.',   locale: 'en', language: 'cpp', nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions'], pricingModel: 'free' },
+  // ---- HTML / CSS (markdown-only, quiz-gated) -----------------------------
+  {
+    slug: 'demo-html-essentials',
+    title: 'HTML từ A đến Z',
+    description:
+      'Cấu trúc trang web, semantic tag, form, table. Không có sandbox — học qua lý thuyết + quiz AI tự sinh để kiểm tra hiểu bài.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['io-basics'],
+    modules: [
+      {
+        title: 'Chương 1 — HTML cơ bản',
+        lessons: [
+          'HTML là gì và cách trình duyệt hiển thị',
+          'Cấu trúc một trang HTML',
+          'Thẻ heading, paragraph, list',
+          'Link và image',
+        ],
+      },
+      {
+        title: 'Chương 2 — Semantic & Form',
+        lessons: [
+          'Semantic tag: header, nav, section, article',
+          'Thẻ form và input',
+          'Validation HTML5',
+          'Accessibility cơ bản',
+        ],
+      },
+      {
+        title: 'Chương 3 — Thực hành',
+        lessons: [
+          'Xây trang CV cá nhân',
+          'Xây form đăng ký',
+          'Xây landing page đơn giản',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-css-layout',
+    title: 'CSS & Layout hiện đại',
+    description:
+      'CSS từ selector, box model đến Flexbox, Grid và responsive. Toàn bộ lý thuyết — quiz AI xác nhận hiểu bài.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['io-basics'],
+    modules: [
+      {
+        title: 'Chương 1 — CSS cơ bản',
+        lessons: [
+          'Selector và specificity',
+          'Box model',
+          'Display: block, inline, inline-block',
+          'Position: relative, absolute, fixed, sticky',
+        ],
+      },
+      {
+        title: 'Chương 2 — Flexbox',
+        lessons: [
+          'Flex container và item',
+          'justify-content và align-items',
+          'flex-grow, flex-shrink, flex-basis',
+          'Flexbox patterns',
+        ],
+      },
+      {
+        title: 'Chương 3 — Grid',
+        lessons: [
+          'Grid template columns/rows',
+          'Grid gap và area',
+          'Auto placement',
+        ],
+      },
+      {
+        title: 'Chương 4 — Responsive',
+        lessons: [
+          'Mobile first',
+          'Media query',
+          'Đơn vị responsive: rem, em, vw, vh',
+          'Container query',
+        ],
+      },
+    ],
+  },
+
+  // ---- Theory-only (markdown + auto-gen quiz) -----------------------------
+  {
+    slug: 'demo-theory-software-engineering',
+    title: 'Kỹ thuật phần mềm — Tổng quan',
+    description:
+      'Kiến thức nền tảng về vòng đời phát triển phần mềm, Agile, Scrum, testing, code review. Khoá lý thuyết, hoàn thành qua quiz AI.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['functions', 'oop-basics'],
+    modules: [
+      {
+        title: 'Chương 1 — Vòng đời phát triển',
+        lessons: [
+          'Software Development Life Cycle (SDLC)',
+          'Mô hình Waterfall',
+          'Mô hình Agile và Scrum',
+          'DevOps và CI/CD',
+        ],
+      },
+      {
+        title: 'Chương 2 — Kỹ năng mềm kỹ sư',
+        lessons: [
+          'Viết user story tốt',
+          'Ước lượng công việc (estimation)',
+          'Code review hiệu quả',
+          'Pair programming',
+        ],
+      },
+      {
+        title: 'Chương 3 — Chất lượng code',
+        lessons: [
+          'Unit test và integration test',
+          'Test-Driven Development',
+          'Refactoring căn bản',
+          'SOLID principles',
+        ],
+      },
+      {
+        title: 'Chương 4 — Quản lý dự án',
+        lessons: [
+          'Git và branching strategy',
+          'Issue tracking',
+          'Documentation và README',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-theory-networking',
+    title: 'Mạng máy tính cơ bản',
+    description:
+      'Hiểu Internet hoạt động thế nào: TCP/IP, HTTP, DNS, SSL. Hoàn thành qua quiz — không cần sandbox.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['io-basics'],
+    modules: [
+      {
+        title: 'Chương 1 — Mô hình mạng',
+        lessons: [
+          'Mô hình OSI 7 tầng',
+          'TCP/IP 4 tầng',
+          'Địa chỉ IP: IPv4 và IPv6',
+          'MAC address và ARP',
+        ],
+      },
+      {
+        title: 'Chương 2 — Giao thức cốt lõi',
+        lessons: [
+          'TCP vs UDP',
+          'HTTP/HTTPS',
+          'DNS — hệ thống tên miền',
+          'DHCP cấp IP tự động',
+        ],
+      },
+      {
+        title: 'Chương 3 — Bảo mật mạng',
+        lessons: [
+          'SSL/TLS hoạt động thế nào',
+          'Firewall và NAT',
+          'VPN cơ bản',
+          'Man-in-the-middle attack',
+        ],
+      },
+      {
+        title: 'Chương 4 — Thực tế',
+        lessons: [
+          'CDN và reverse proxy',
+          'Load balancer',
+          'WebSocket vs HTTP',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-theory-database',
+    title: 'Cơ sở dữ liệu quan hệ',
+    description:
+      'Mô hình quan hệ, SQL, chuẩn hoá, index và transaction. Lý thuyết có kèm ví dụ SQL — quiz AI chấm hiểu bài.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['arrays', 'strings'],
+    modules: [
+      {
+        title: 'Chương 1 — Mô hình quan hệ',
+        lessons: [
+          'Khái niệm table, row, column',
+          'Khoá chính và khoá ngoại',
+          'Mô hình ER (Entity-Relationship)',
+        ],
+      },
+      {
+        title: 'Chương 2 — SQL cơ bản',
+        lessons: [
+          'SELECT, WHERE, ORDER BY',
+          'JOIN các loại',
+          'GROUP BY và aggregate',
+          'Subquery',
+        ],
+      },
+      {
+        title: 'Chương 3 — Chuẩn hoá',
+        lessons: [
+          '1NF, 2NF, 3NF',
+          'Khi nào denormalize',
+        ],
+      },
+      {
+        title: 'Chương 4 — Performance',
+        lessons: [
+          'Index — B-tree và hash',
+          'Query plan và EXPLAIN',
+          'Transaction và ACID',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-theory-oop',
+    title: 'Tư duy Hướng Đối tượng',
+    description:
+      'OOP không phụ thuộc ngôn ngữ: encapsulation, inheritance, polymorphism, abstraction. Dùng case study để hiểu — quiz AI xác nhận.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['oop-basics', 'oop-inheritance', 'functions'],
+    modules: [
+      {
+        title: 'Chương 1 — 4 trụ cột',
+        lessons: [
+          'Encapsulation — đóng gói',
+          'Inheritance — kế thừa',
+          'Polymorphism — đa hình',
+          'Abstraction — trừu tượng hoá',
+        ],
+      },
+      {
+        title: 'Chương 2 — Nguyên lý thiết kế',
+        lessons: [
+          'Single Responsibility',
+          'Open/Closed',
+          'Liskov Substitution',
+          'Interface Segregation',
+          'Dependency Inversion',
+        ],
+      },
+      {
+        title: 'Chương 3 — Pattern thường gặp',
+        lessons: [
+          'Singleton — khi cần, khi không',
+          'Factory pattern',
+          'Observer pattern',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'demo-theory-algorithms',
+    title: 'Tư duy giải thuật',
+    description:
+      'Đô phức tạp thời gian/không gian, các paradigm thuật toán: greedy, DP, divide-and-conquer. Hoàn thành qua quiz.',
+    locale: 'vi',
+    pricingModel: 'free',
+    nodes: ['algo-sorting', 'algo-searching', 'recursion', 'ds-stack-queue'],
+    modules: [
+      {
+        title: 'Chương 1 — Độ phức tạp',
+        lessons: [
+          'Big-O notation',
+          'So sánh O(n) vs O(n log n) vs O(n²)',
+          'Space complexity',
+          'Amortised analysis',
+        ],
+      },
+      {
+        title: 'Chương 2 — Paradigm',
+        lessons: [
+          'Brute force và khi dùng',
+          'Chia để trị (divide and conquer)',
+          'Greedy algorithm',
+          'Dynamic programming',
+        ],
+      },
+      {
+        title: 'Chương 3 — Bài toán kinh điển',
+        lessons: [
+          'Sắp xếp và so sánh độ phức tạp',
+          'Tìm kiếm tuyến tính vs nhị phân',
+          'Bài toán balo (knapsack)',
+          'Đường đi ngắn nhất',
+        ],
+      },
+    ],
+  },
+
+  // ---- Applied / interview ------------------------------------------------
+  {
+    slug: 'demo-dsa-foundation',
+    title: 'Cấu trúc dữ liệu & Giải thuật (Hands-on)',
+    description:
+      'Implement cây, stack, queue, linked list bằng C++. 25 bài code thực chiến qua sandbox.',
+    locale: 'vi',
+    language: 'cpp',
+    pricingModel: 'paid',
+    priceVnd: 299_000,
+    nodes: ['ds-stack-queue', 'arrays', 'recursion', 'algo-sorting', 'algo-searching'],
+    modules: [
+      {
+        title: 'Chương 1 — Linked List',
+        lessons: ['Singly linked list', 'Doubly linked list', 'Các thao tác cơ bản', 'Reverse list', 'Detect cycle'],
+      },
+      {
+        title: 'Chương 2 — Stack & Queue',
+        lessons: ['Stack bằng mảng', 'Queue bằng mảng vòng', 'Deque', 'Balanced parentheses'],
+      },
+      {
+        title: 'Chương 3 — Tree',
+        lessons: ['Binary tree', 'Binary search tree', 'Tree traversal', 'Lowest common ancestor'],
+      },
+      {
+        title: 'Chương 4 — Heap & Priority Queue',
+        lessons: ['Heap structure', 'Heap operations', 'Heap sort', 'Top-K problem'],
+      },
+    ],
+  },
+  {
+    slug: 'demo-interview-prep',
+    title: 'Tuyển tập 50 bài phỏng vấn',
+    description:
+      'Array, string, tree, graph — mọi công ty tech đều hỏi một biến thể. Giải chi tiết + nhiều cách tiếp cận.',
+    locale: 'vi',
+    language: 'cpp',
+    pricingModel: 'paid',
+    priceVnd: 399_000,
+    nodes: ['arrays', 'strings', 'algo-sorting', 'algo-searching', 'recursion', 'ds-stack-queue'],
+    modules: [
+      {
+        title: 'Chương 1 — Array & String',
+        lessons: ['Two Sum', 'Best Time to Buy Stock', 'Longest Substring Without Repeating', 'Group Anagrams'],
+      },
+      {
+        title: 'Chương 2 — Linked List',
+        lessons: ['Reverse Linked List', 'Merge Two Sorted Lists', 'Linked List Cycle'],
+      },
+      {
+        title: 'Chương 3 — Tree',
+        lessons: ['Invert Binary Tree', 'Maximum Depth', 'Binary Tree Level Order'],
+      },
+      {
+        title: 'Chương 4 — DP',
+        lessons: ['Climbing Stairs', 'House Robber', 'Coin Change'],
+      },
+    ],
+  },
+  {
+    slug: 'demo-clean-code',
+    title: 'Clean Code thực hành',
+    description:
+      'Refactor codebase rối → clean qua 10 code smell hay gặp. Áp dụng SOLID vào ví dụ C++.',
+    locale: 'vi',
+    language: 'cpp',
+    pricingModel: 'paid',
+    priceVnd: 249_000,
+    nodes: ['functions', 'oop-basics'],
+    modules: [
+      {
+        title: 'Chương 1 — Code smell',
+        lessons: ['Long method', 'Large class', 'Duplicated code', 'Feature envy'],
+      },
+      {
+        title: 'Chương 2 — Refactoring',
+        lessons: ['Extract method', 'Extract class', 'Rename variable', 'Replace magic number'],
+      },
+      {
+        title: 'Chương 3 — Apply SOLID',
+        lessons: ['SRP qua ví dụ', 'OCP qua ví dụ', 'Dependency Injection'],
+      },
+    ],
+  },
+  {
+    slug: 'demo-python-web',
+    title: 'Flask & REST API',
+    description:
+      'Xây REST API đầu tiên với Flask + SQLite. Authentication, CRUD, testing.',
+    locale: 'vi',
+    language: 'python',
+    pricingModel: 'paid',
+    priceVnd: 299_000,
+    nodes: ['functions', 'strings'],
+    modules: [
+      {
+        title: 'Chương 1 — Flask cơ bản',
+        lessons: ['Hello Flask', 'Route và HTTP methods', 'Request và Response', 'JSON API'],
+      },
+      {
+        title: 'Chương 2 — Database',
+        lessons: ['SQLite với SQLAlchemy', 'Model và migration', 'CRUD endpoint'],
+      },
+      {
+        title: 'Chương 3 — Auth & Deploy',
+        lessons: ['JWT authentication', 'Rate limiting', 'Deploy lên Heroku / Render'],
+      },
+    ],
+  },
+  {
+    slug: 'demo-english-cpp',
+    title: 'Intro to Programming in C++',
+    description:
+      'English-taught entry course — variables, control flow, functions, arrays. Perfect for international students.',
+    locale: 'en',
+    language: 'cpp',
+    pricingModel: 'free',
+    nodes: ['io-basics', 'variables-types', 'control-flow', 'loops', 'functions'],
+    modules: [
+      {
+        title: 'Chapter 1 — Getting Started',
+        lessons: ['What is C++?', 'Your First Program', 'Variables and Types', 'Basic I/O'],
+      },
+      {
+        title: 'Chapter 2 — Control Flow',
+        lessons: ['If and Else', 'Loops', 'Switch Statement'],
+      },
+      {
+        title: 'Chapter 3 — Functions',
+        lessons: ['Declaring Functions', 'Parameters and Return Values', 'Function Overloading'],
+      },
+      {
+        title: 'Chapter 4 — Arrays',
+        lessons: ['One-Dimensional Arrays', 'Arrays and Loops', 'String Basics'],
+      },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
-// Archetypes — each student picks one at creation; all their submissions use
-// that archetype's AC rate + preferred domain bias.
+// Content generation — produce ~500 char Vietnamese markdown per lesson. We
+// pattern-match keywords in the topic to emit realistic prose plus 1 small
+// code block when the course has an executable language. The output is
+// deliberately short enough that DeepSeek's quiz generator stays under its
+// 6KB cap, and long enough (≥ 80 chars, per the api-core guard) to pass.
+// ---------------------------------------------------------------------------
+
+function codeSampleFor(language: CodeLanguage | undefined, topic: string): string | null {
+  if (!language) return null;
+  const t = topic.toLowerCase();
+  if (language === 'cpp' || language === 'c') {
+    if (t.includes('hello') || t.includes('first') || t.includes('đầu tiên')) {
+      return language === 'cpp'
+        ? `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello World!";\n    return 0;\n}`
+        : `#include <stdio.h>\n\nint main() {\n    printf("Hello World!\\n");\n    return 0;\n}`;
+    }
+    if (t.includes('biến') || t.includes('variable') || t.includes('kiểu')) {
+      return `int age = 22;\ndouble gpa = 3.5;\nchar grade = 'A';\nstring name = "An";`;
+    }
+    if (t.includes('if') || t.includes('điều kiện')) {
+      return `int n = 7;\nif (n % 2 == 0) {\n    cout << n << " is even";\n} else {\n    cout << n << " is odd";\n}`;
+    }
+    if (t.includes('vòng lặp') || t.includes('loop') || t.includes('for')) {
+      return `for (int i = 1; i <= 5; i++) {\n    cout << i << " ";\n}\n// output: 1 2 3 4 5`;
+    }
+    if (t.includes('hàm') || t.includes('function')) {
+      return `int add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    cout << add(3, 4);\n    return 0;\n}`;
+    }
+    if (t.includes('mảng') || t.includes('array')) {
+      return `int arr[5] = {1, 2, 3, 4, 5};\nfor (int i = 0; i < 5; i++) {\n    cout << arr[i] << " ";\n}`;
+    }
+    if (t.includes('con trỏ') || t.includes('pointer')) {
+      return `int x = 10;\nint* p = &x;\ncout << *p << endl;  // 10\n*p = 20;\ncout << x << endl;   // 20`;
+    }
+    if (t.includes('class') || t.includes('lớp') || t.includes('object')) {
+      return `class Point {\npublic:\n    int x, y;\n    Point(int x, int y) : x(x), y(y) {}\n};`;
+    }
+    if (t.includes('kế thừa') || t.includes('inheritance')) {
+      return `class Animal {\npublic:\n    void eat() { cout << "eating"; }\n};\n\nclass Dog : public Animal {\npublic:\n    void bark() { cout << "woof"; }\n};`;
+    }
+    return null;
+  }
+  if (language === 'python') {
+    if (t.includes('hello') || t.includes('đầu tiên') || t.includes('first')) {
+      return `print("Hello World!")`;
+    }
+    if (t.includes('biến') || t.includes('kiểu')) {
+      return `age = 22          # int\ngpa = 3.5         # float\nname = "An"       # str\nis_student = True # bool`;
+    }
+    if (t.includes('if') || t.includes('điều kiện')) {
+      return `n = 7\nif n % 2 == 0:\n    print(f"{n} is even")\nelse:\n    print(f"{n} is odd")`;
+    }
+    if (t.includes('for') || t.includes('while') || t.includes('vòng lặp')) {
+      return `for i in range(1, 6):\n    print(i, end=" ")\n# output: 1 2 3 4 5`;
+    }
+    if (t.includes('list')) {
+      return `nums = [1, 2, 3, 4, 5]\nsquared = [x * x for x in nums]\nprint(squared)  # [1, 4, 9, 16, 25]`;
+    }
+    if (t.includes('dictionary')) {
+      return `student = {"name": "An", "age": 22, "gpa": 3.5}\nprint(student["name"])\nstudent["email"] = "an@example.com"`;
+    }
+    if (t.includes('hàm') || t.includes('function') || t.includes('def')) {
+      return `def add(a, b):\n    return a + b\n\nprint(add(3, 4))  # 7`;
+    }
+    if (t.includes('pandas')) {
+      return `import pandas as pd\n\ndf = pd.read_csv("sales.csv")\nprint(df.head())\nprint(df.describe())`;
+    }
+    if (t.includes('flask')) {
+      return `from flask import Flask\napp = Flask(__name__)\n\n@app.route("/")\ndef hello():\n    return {"msg": "hello"}`;
+    }
+    return null;
+  }
+  if (language === 'js') {
+    if (t.includes('hello') || t.includes('đầu tiên')) return `console.log("Hello World!");`;
+    if (t.includes('const') || t.includes('let')) {
+      return `const PI = 3.14;       // immutable\nlet count = 0;         // reassignable\ncount++;\n// var is legacy — avoid`;
+    }
+    if (t.includes('arrow')) {
+      return `const add = (a, b) => a + b;\nconst double = x => x * 2;\nconsole.log(add(3, 4));`;
+    }
+    if (t.includes('map') || t.includes('filter') || t.includes('reduce')) {
+      return `const nums = [1, 2, 3, 4, 5];\nconst doubled = nums.map(x => x * 2);\nconst sum = nums.reduce((a, b) => a + b, 0);`;
+    }
+    if (t.includes('async') || t.includes('await') || t.includes('promise')) {
+      return `async function fetchUser(id) {\n  const res = await fetch(\`/users/\${id}\`);\n  return res.json();\n}`;
+    }
+    if (t.includes('class')) {
+      return `class Point {\n  constructor(x, y) {\n    this.x = x;\n    this.y = y;\n  }\n}`;
+    }
+    return null;
+  }
+  return null;
+}
+
+function lessonContent(topic: string, language: CodeLanguage | undefined): string {
+  const sample = codeSampleFor(language, topic);
+  const codeLang = language === 'cpp' ? 'cpp' : language === 'c' ? 'c' : language === 'python' ? 'python' : language === 'js' ? 'javascript' : '';
+  const codeBlock = sample ? `\n\n\`\`\`${codeLang}\n${sample}\n\`\`\`\n` : '';
+
+  // Short, topic-flavoured intro + 2–3 bullet points + optional code + closing
+  // remark. Deliberately not too specific — this is demo seed content, the
+  // real pedagogical value is in the teacher's edits. We just need enough
+  // text for quiz generation and heatmap signal.
+  const bullets = [
+    `Khái niệm trọng tâm của bài "${topic}" — hiểu được nguyên lý giúp bạn áp dụng vào bài tập phía sau.`,
+    `Điểm thường nhầm lẫn: đọc kỹ ví dụ minh hoạ và so sánh với cách bạn từng viết.`,
+    `Khi nào dùng: liệt kê ít nhất 2 tình huống thực tế bạn có thể áp dụng ngay.`,
+  ];
+
+  const intro = `## ${topic}\n\nBài học này tập trung vào **${topic.toLowerCase()}** — một khái niệm nền tảng bạn sẽ gặp lại ở mọi bài kế tiếp. Hãy đọc chậm, quan sát ví dụ và ghi chú câu hỏi để hỏi AI Tutor nếu còn vướng.`;
+
+  const points = `\n\n**Ba ý chính:**\n- ${bullets[0]}\n- ${bullets[1]}\n- ${bullets[2]}`;
+
+  const closing = `\n\n> Tip: sau khi đọc xong, dùng nút **"Giải thích"** trên block code để AI Tutor giải nghĩa từng dòng — đặc biệt hữu ích khi bạn tự học.`;
+
+  return intro + points + codeBlock + closing;
+}
+
+// ---------------------------------------------------------------------------
+// Archetypes
 // ---------------------------------------------------------------------------
 
 interface Archetype {
   name: string;
-  weight: number;              // population share
-  acRate: number;              // baseline pass rate
-  activityMultiplier: number;  // relative submission volume
-  preferDomain?: CodeLanguage; // biased to exercises in this language
+  weight: number;
+  acRate: number;
+  activityMultiplier: number;
+  preferDomain?: CodeLanguage;
 }
 
 const ARCHETYPES: Archetype[] = [
   { name: 'absolute-beginner', weight: 0.22, acRate: 0.28, activityMultiplier: 0.7 },
-  { name: 'steady-learner',    weight: 0.35, acRate: 0.58, activityMultiplier: 1.0 },
+  { name: 'steady-learner',    weight: 0.32, acRate: 0.58, activityMultiplier: 1.0 },
   { name: 'strong-performer',  weight: 0.15, acRate: 0.85, activityMultiplier: 1.3 },
-  { name: 'cpp-focused',       weight: 0.12, acRate: 0.70, activityMultiplier: 1.1, preferDomain: 'cpp' },
-  { name: 'python-focused',    weight: 0.10, acRate: 0.68, activityMultiplier: 1.1, preferDomain: 'python' },
+  { name: 'cpp-focused',       weight: 0.10, acRate: 0.70, activityMultiplier: 1.1, preferDomain: 'cpp' },
+  { name: 'python-focused',    weight: 0.08, acRate: 0.68, activityMultiplier: 1.1, preferDomain: 'python' },
+  { name: 'js-focused',        weight: 0.07, acRate: 0.66, activityMultiplier: 1.05, preferDomain: 'js' },
   { name: 'drop-risk',         weight: 0.06, acRate: 0.22, activityMultiplier: 0.4 },
 ];
 
@@ -142,11 +1024,6 @@ function pickArchetype(): Archetype {
   }
   return ARCHETYPES[ARCHETYPES.length - 1]!;
 }
-
-// ---------------------------------------------------------------------------
-// Verdict distribution — when an archetype "passes" we emit AC; when they
-// don't, we spread the failure across WA/CE/TLE/RE in realistic proportions.
-// ---------------------------------------------------------------------------
 
 const FAIL_MIX: Array<[Verdict, number]> = [
   ['wa', 0.55],
@@ -166,17 +1043,12 @@ function pickVerdict(acRate: number): Verdict {
   return 'wa';
 }
 
-// ---------------------------------------------------------------------------
-// Placeholder source code — kept short so 50k rows stay under ~5 MB. Each
-// submission carries a comment with its sequence number so it's not a
-// duplicated blob in the DB (helps pg_dump stay useful, makes grep possible).
-// ---------------------------------------------------------------------------
-
 function placeholderSource(language: CodeLanguage, seq: number): string {
   switch (language) {
     case 'cpp':
-    case 'c':
       return `// seed-massive submission #${seq}\n#include <iostream>\nint main() { std::cout << "demo"; return 0; }\n`;
+    case 'c':
+      return `/* seed-massive submission #${seq} */\n#include <stdio.h>\nint main() { printf("demo"); return 0; }\n`;
     case 'python':
       return `# seed-massive submission #${seq}\nprint("demo")\n`;
     case 'js':
@@ -185,7 +1057,7 @@ function placeholderSource(language: CodeLanguage, seq: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Main pipeline
+// Seeding pipeline
 // ---------------------------------------------------------------------------
 
 async function ensureTeacher(): Promise<string> {
@@ -234,7 +1106,14 @@ async function seedCourses(teacherId: string): Promise<SeededExercise[]> {
   for (const spec of COURSES) {
     const course = await prisma.course.upsert({
       where: { slug: spec.slug },
-      update: { title: spec.title, description: spec.description, status: 'published' },
+      update: {
+        title: spec.title,
+        description: spec.description,
+        status: 'published',
+        pricingModel: spec.pricingModel,
+        priceCents: spec.pricingModel === 'paid' ? (spec.priceVnd ?? 199_000) * 100 : null,
+        currency: spec.pricingModel === 'paid' ? 'VND' : null,
+      },
       create: {
         slug: spec.slug,
         title: spec.title,
@@ -249,35 +1128,40 @@ async function seedCourses(teacherId: string): Promise<SeededExercise[]> {
       },
     });
 
-    // Blow away any stale modules so a re-seed produces clean state.
+    // Wipe any stale modules so re-seed produces clean state.
     await prisma.module.deleteMany({ where: { courseId: course.id } });
 
-    const numModules = 3 + Math.floor(rand() * 2); // 3 or 4
-    for (let mi = 0; mi < numModules; mi++) {
+    // How many lessons of this course should be code exercises? Theory-only
+    // courses → 0%. Hands-on courses with a declared language → 60–70%.
+    const theoryOnly = !spec.language;
+
+    for (let mi = 0; mi < spec.modules.length; mi++) {
+      const modSpec = spec.modules[mi]!;
       const mod = await prisma.module.create({
         data: {
           courseId: course.id,
-          title: `Chương ${mi + 1}`,
+          title: modSpec.title,
           sortOrder: mi,
         },
       });
 
-      const numLessons = 4 + Math.floor(rand() * 3); // 4–6 lessons
-      for (let li = 0; li < numLessons; li++) {
-        const isExercise = rand() < 0.65; // 65% exercises
+      for (let li = 0; li < modSpec.lessons.length; li++) {
+        const topic = modSpec.lessons[li]!;
+        const isExercise = !theoryOnly && rand() < 0.65;
         const type: LessonType = isExercise ? 'exercise' : 'markdown';
+
         const lesson = await prisma.lesson.create({
           data: {
             moduleId: mod.id,
-            title: `${spec.title.split(' —')[0]} · bài ${mi + 1}.${li + 1}`,
+            title: topic,
             sortOrder: li,
             type,
-            contentMarkdown: `Bài ${mi + 1}.${li + 1} — nội dung lý thuyết ngắn cho ${spec.title}.`,
-            estMinutes: 8 + Math.floor(rand() * 8),
+            contentMarkdown: lessonContent(topic, spec.language),
+            estMinutes: 8 + Math.floor(rand() * 10),
           },
         });
 
-        // Tag each lesson with 1–2 knowledge nodes from this course's slate.
+        // Tag lesson with 1–2 relevant knowledge nodes from the course slate.
         const pickNodes = Math.min(spec.nodes.length, 1 + Math.floor(rand() * 2));
         const chosenSlugs = new Set<string>();
         while (chosenSlugs.size < pickNodes) chosenSlugs.add(pick(spec.nodes));
@@ -291,7 +1175,7 @@ async function seedCourses(teacherId: string): Promise<SeededExercise[]> {
           });
         }
 
-        if (isExercise) {
+        if (isExercise && spec.language) {
           const ex = await prisma.exercise.create({
             data: {
               lessonId: lesson.id,
@@ -331,8 +1215,6 @@ async function seedStudents(): Promise<StudentRow[]> {
   const role = await prisma.role.findUnique({ where: { name: 'student' } });
   if (!role) throw new Error('role student missing — run `pnpm db:seed` first');
 
-  // Argon2 is expensive (~300ms/hash). For 500 throwaway demo accounts we
-  // hash the shared password exactly once and reuse the string.
   const sharedHash = await argon2.hash(SHARED_PASSWORD, {
     type: argon2.argon2id,
     memoryCost: 19_456,
@@ -359,9 +1241,6 @@ async function seedStudents(): Promise<StudentRow[]> {
         status: 'active',
       });
     }
-    // createMany returns counts, not rows — we need IDs so fall back to
-    // per-row creates but run them in parallel with a bounded pool. 200
-    // parallel inserts fit comfortably in Postgres's connection budget.
     const created = await Promise.all(batch.map((data) => prisma.user.create({ data })));
     for (let i = 0; i < created.length; i++) {
       rows.push({
@@ -372,7 +1251,6 @@ async function seedStudents(): Promise<StudentRow[]> {
     }
   }
 
-  // Grant student role in one bulk call.
   await prisma.userRole.createMany({
     data: rows.map((r) => ({ userId: r.id, roleId: role.id })),
     skipDuplicates: true,
@@ -383,15 +1261,9 @@ async function seedStudents(): Promise<StudentRow[]> {
 
 async function seedEnrolments(
   students: StudentRow[],
-  exercises: SeededExercise[],
+  allCourseIds: string[],
 ): Promise<Map<string, string[]>> {
-  const coursesById = new Map<string, { id: string; language: CodeLanguage }>();
-  for (const ex of exercises) {
-    coursesById.set(ex.courseId, { id: ex.courseId, language: ex.language });
-  }
-  const allCourseIds = [...coursesById.keys()];
   const studentToCourses = new Map<string, string[]>();
-
   const data: Array<{ userId: string; courseId: string; enrolledAt: Date }> = [];
   for (const s of students) {
     const n = randInt(ENROLMENTS_PER_STUDENT_MIN, ENROLMENTS_PER_STUDENT_MAX);
@@ -400,8 +1272,6 @@ async function seedEnrolments(
     const enrolledAt = new Date(Date.now() - randInt(10, 60) * 24 * 60 * 60 * 1000);
     for (const courseId of shuffled) data.push({ userId: s.id, courseId, enrolledAt });
   }
-
-  // createMany chokes at ~65k rows; we stay well under so single call is fine.
   await prisma.enrollment.createMany({ data, skipDuplicates: true });
   return studentToCourses;
 }
@@ -417,8 +1287,6 @@ async function seedSubmissions(
     exercisesByCourse.get(ex.courseId)!.push(ex);
   }
 
-  // Precompute how many submissions each student gets so the total hits
-  // TARGET_SUBMISSIONS after archetype-activity weighting.
   const weights = students.map((s) => ARCHETYPES[s.archetypeIdx]!.activityMultiplier);
   const totalWeight = weights.reduce((a, b) => a + b, 0);
   const perStudent = weights.map((w) => Math.max(5, Math.round((w / totalWeight) * TARGET_SUBMISSIONS)));
@@ -451,13 +1319,15 @@ async function seedSubmissions(
     const student = students[si]!;
     const archetype = ARCHETYPES[student.archetypeIdx]!;
     const enrolledCourseIds = studentToCourses.get(student.id) ?? [];
+    // Only courses that have exercises produce submissions — theory-only
+    // courses contribute through quiz_attempts (not modelled in this seed;
+    // a second pass can call the /quiz/attempts endpoint if we want BKT
+    // signal from quizzes too).
     const candidateExercises = enrolledCourseIds.flatMap((cid) => exercisesByCourse.get(cid) ?? []);
     if (candidateExercises.length === 0) continue;
 
     const n = perStudent[si]!;
     for (let k = 0; k < n; k++) {
-      // Domain bias: if archetype prefers a language and there's at least
-      // one matching exercise among enrolments, flip a weighted coin.
       let ex = pick(candidateExercises);
       if (archetype.preferDomain) {
         const matching = candidateExercises.filter((e) => e.language === archetype.preferDomain);
@@ -465,8 +1335,6 @@ async function seedSubmissions(
       }
       const verdict = pickVerdict(archetype.acRate);
       const createdAt = new Date(now - Math.floor(rand() * windowMs));
-      // finishedAt is createdAt + 0.3–4 seconds; keeps "time to grade"
-      // charts honest if/when we build them.
       const finishedAt = new Date(createdAt.getTime() + 300 + Math.floor(rand() * 3_700));
       const runtimeMs = verdict === 'tle' ? 3_000 : 30 + Math.floor(rand() * 500);
       globalSeq += 1;
@@ -488,11 +1356,6 @@ async function seedSubmissions(
 }
 
 async function seedMastery(students: StudentRow[]): Promise<void> {
-  // Instead of calling data-science rebuild 500× (~15 min), we compute a
-  // BKT-shaped score directly from each student's AC rate on each
-  // knowledge node. Matches the distribution BKT would produce closely
-  // enough for UI demos — Heatmap, Radar, and Explainable rec cards all
-  // consume the user_mastery rows without caring who wrote them.
   console.warn('[massive] computing mastery from submissions');
   const rows: Array<{
     user_id: string;
@@ -511,7 +1374,7 @@ async function seedMastery(students: StudentRow[]): Promise<void> {
     pass: number;
     fail: number;
   }
-  const bucket = new Map<string, Bucket>(); // key = `${user}:${node}`
+  const bucket = new Map<string, Bucket>();
   for (const r of rows) {
     const k = `${r.user_id}:${r.node_id}`;
     const b = bucket.get(k) ?? { pass: 0, fail: 0 };
@@ -530,8 +1393,6 @@ async function seedMastery(students: StudentRow[]): Promise<void> {
   for (const [key, b] of bucket) {
     const [userId, nodeId] = key.split(':') as [string, string];
     const attempts = b.pass + b.fail;
-    // BKT-like shape: clamp to [0.05, 0.95], add a touch of jitter so the
-    // heatmap isn't visually banded. Score tracks AC rate.
     const raw = attempts > 0 ? b.pass / attempts : 0.1;
     const jitter = (rand() - 0.5) * 0.08;
     const score = Math.max(0.05, Math.min(0.95, raw + jitter));
@@ -539,7 +1400,6 @@ async function seedMastery(students: StudentRow[]): Promise<void> {
     masteryRows.push({ userId, nodeId, score, confidence, attempts });
   }
 
-  // createMany doesn't support composite-PK upsert; wipe first, then insert.
   await prisma.userMastery.deleteMany({
     where: { userId: { in: students.map((s) => s.id) } },
   });
@@ -554,15 +1414,16 @@ async function seedMastery(students: StudentRow[]): Promise<void> {
 
 async function wipePrevious(): Promise<void> {
   console.warn('[massive] --force: wiping previous massive seed');
-  // Students first (cascade removes enrolments / submissions / mastery).
-  const { count: userCount } = await prisma.user.deleteMany({
-    where: { email: { endsWith: '@demo.khohoc.online' } },
-  });
-  // Then demo courses (cascade removes modules / lessons / exercises).
+  // Order matters: courses reference the demo teacher via teacher_id, so
+  // wipe courses first (cascades modules/lessons/exercises/submissions via
+  // onDelete: Cascade), then users (cascades enrolments, mastery, etc).
   const { count: courseCount } = await prisma.course.deleteMany({
     where: { slug: { startsWith: 'demo-' } },
   });
-  console.warn(`[massive] wiped ${userCount} users + ${courseCount} courses`);
+  const { count: userCount } = await prisma.user.deleteMany({
+    where: { email: { endsWith: '@demo.khohoc.online' } },
+  });
+  console.warn(`[massive] wiped ${courseCount} courses + ${userCount} users`);
 }
 
 async function main() {
@@ -583,14 +1444,24 @@ async function main() {
 
   console.warn(`[massive] seeding ${COURSES.length} courses`);
   const exercises = await seedCourses(teacherId);
-  console.warn(`[massive] → ${exercises.length} exercises across ${COURSES.length} courses`);
+  const totalLessons = COURSES.reduce(
+    (sum, c) => sum + c.modules.reduce((s, m) => s + m.lessons.length, 0),
+    0,
+  );
+  console.warn(
+    `[massive] → ${exercises.length} exercises across ${COURSES.length} courses (${totalLessons} lessons total)`,
+  );
 
   console.warn(`[massive] seeding ${NUM_STUDENTS} virtual students`);
   const students = await seedStudents();
   console.warn(`[massive] → ${students.length} students`);
 
+  const allCourses = await prisma.course.findMany({ where: { slug: { startsWith: 'demo-' } } });
   console.warn('[massive] enrolling students in 3–6 courses each');
-  const studentToCourses = await seedEnrolments(students, exercises);
+  const studentToCourses = await seedEnrolments(
+    students,
+    allCourses.map((c) => c.id),
+  );
 
   console.warn(`[massive] generating ~${TARGET_SUBMISSIONS} submissions (45-day window)`);
   await seedSubmissions(students, exercises, studentToCourses);
@@ -600,13 +1471,17 @@ async function main() {
   const elapsed = ((Date.now() - started) / 1_000).toFixed(1);
   console.warn(`[massive] done in ${elapsed}s`);
 
-  // Basic sanity counts for the commit log.
-  const [uCount, sCount, mCount] = await Promise.all([
+  const [uCount, sCount, mCount, theoryCount] = await Promise.all([
     prisma.user.count({ where: { email: { endsWith: '@demo.khohoc.online' } } }),
     prisma.submission.count(),
     prisma.userMastery.count(),
+    prisma.course.count({
+      where: { slug: { startsWith: 'demo-' }, modules: { none: { lessons: { some: { type: 'exercise' } } } } },
+    }),
   ]);
-  console.warn(`[massive] db totals: demo_users=${uCount} submissions=${sCount} mastery_rows=${mCount}`);
+  console.warn(
+    `[massive] db totals: demo_users=${uCount} submissions=${sCount} mastery_rows=${mCount} theory_only_courses=${theoryCount}`,
+  );
 }
 
 main()
