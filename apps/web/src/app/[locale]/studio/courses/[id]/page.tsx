@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/lib/i18n/routing';
 import { api, ApiError } from '@/lib/api';
 import type { CourseDetail } from '@lms/shared-types';
+import { LessonTagsEditor } from './LessonTagsEditor';
 
 // Edit-course screen. Covers the four authoring motions: (1) rename/edit
 // basic fields, (2) add a module, (3) add a lesson to a module, (4) publish
@@ -273,22 +274,7 @@ function ModuleCard({
       ) : (
         <ul className="flex flex-col gap-1">
           {lessons.map((l) => (
-            <li
-              key={l.id}
-              className="flex items-center justify-between rounded-box bg-panel px-3 py-2 text-sm"
-            >
-              <span className="flex items-center gap-3">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-accent/15 text-[10px] font-semibold text-accent">
-                  {l.type === 'markdown' ? 'M' : l.type === 'exercise' ? 'C' : 'Q'}
-                </span>
-                <span className="font-medium text-text">
-                  {l.sort_order}. {l.title}
-                </span>
-              </span>
-              {l.est_minutes ? (
-                <span className="text-xs text-text-muted">{l.est_minutes}′</span>
-              ) : null}
-            </li>
+            <LessonRow key={l.id} lesson={l} />
           ))}
         </ul>
       )}
@@ -299,6 +285,42 @@ function ModuleCard({
         onAdded={onChanged}
       />
     </div>
+  );
+}
+
+function LessonRow({
+  lesson,
+}: {
+  lesson: CourseDetail['modules'][number]['lessons'][number];
+}) {
+  const t = useTranslations('studio.edit.tags');
+  const [showTags, setShowTags] = useState(false);
+  return (
+    <li className="rounded-box bg-panel px-3 py-2 text-sm">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-3">
+          <span className="grid h-5 w-5 place-items-center rounded-full bg-accent/15 text-[10px] font-semibold text-accent">
+            {lesson.type === 'markdown' ? 'M' : lesson.type === 'exercise' ? 'C' : 'Q'}
+          </span>
+          <span className="font-medium text-text">
+            {lesson.sort_order}. {lesson.title}
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          {lesson.est_minutes ? (
+            <span className="text-xs text-text-muted">{lesson.est_minutes}′</span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setShowTags((v) => !v)}
+            className="rounded-pill border border-border px-2.5 py-0.5 text-[11px] text-text-muted transition-colors hover:border-text hover:text-text"
+          >
+            {showTags ? t('hide') : t('toggle')}
+          </button>
+        </span>
+      </div>
+      {showTags ? <LessonTagsEditor lessonId={lesson.id} /> : null}
+    </li>
   );
 }
 
