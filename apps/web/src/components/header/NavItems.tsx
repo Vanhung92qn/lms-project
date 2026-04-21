@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/lib/i18n/routing';
+import { useSession } from '@/lib/session';
 
 /**
  * Top-header navigation. Matches the sitemap fixed in
@@ -11,21 +12,28 @@ import { Link, usePathname } from '@/lib/i18n/routing';
  * Not all destinations exist yet (p2+); links that point to future routes
  * are rendered as `disabled` (muted, no href). The structure ships now so
  * the UX spec is visible to reviewers.
+ *
+ * "Duyệt lộ trình" → /courses (public catalog, visible to everyone).
+ * "Học tập"        → /dashboard (enrolled courses + mastery + recs).
+ *                     Hidden for anonymous visitors to avoid routing them
+ *                     into a forced-login redirect.
  */
 export function NavItems({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
+  const { user } = useSession();
 
-  const items: Array<{ key: keyof IntlMessages; href: string | null }> = [
+  const allItems: Array<{ key: keyof IntlMessages; href: string | null; authOnly?: boolean }> = [
     { key: 'home',        href: '/' },
     { key: 'roadmap',     href: '/courses' },
     { key: 'ai_tutor',    href: null },
-    { key: 'learn',       href: '/courses' },
+    { key: 'learn',       href: '/dashboard', authOnly: true },
     { key: 'challenge',   href: null },
     { key: 'contest',     href: null },
     { key: 'leaderboard', href: null },
     { key: 'forum',       href: null },
   ];
+  const items = allItems.filter((item) => !item.authOnly || user);
 
   // Theme-aware across both variants — all colours read from tokens.
   // Keeping the `variant` parameter in case we need to fork behaviour
