@@ -70,7 +70,13 @@ export default function EditCoursePage() {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`analytics`}
+            className="rounded-pill border border-border px-4 py-2 text-xs text-text-muted transition-colors hover:border-text hover:text-text"
+          >
+            {t('view_analytics')} →
+          </a>
           <PublishButton
             status={course.status}
             courseId={course.id}

@@ -20,14 +20,15 @@ export function AdminSidebar() {
   const isAdmin = user?.roles.includes('admin') ?? false;
 
   const items: Array<{ key: string; href: string; label: string; roles: Array<'teacher' | 'admin'> }> = [
-    { key: 'overview', href: '/studio', label: t('overview'), roles: ['teacher', 'admin'] },
-    { key: 'courses', href: '/studio', label: t('courses'), roles: ['teacher', 'admin'] },
+    ...(isAdmin
+      ? [{ key: 'overview', href: '/studio/overview', label: t('overview'), roles: ['admin' as const] }]
+      : []),
+    { key: 'courses', href: '/studio', label: t('courses'), roles: ['teacher' as const, 'admin' as const] },
   ];
   if (isAdmin) {
     items.push(
       { key: 'topups', href: '/studio/topups', label: t('topups'), roles: ['admin'] },
-      { key: 'users', href: '/studio', label: t('users'), roles: ['admin'] },
-      { key: 'metrics', href: '/studio', label: t('metrics'), roles: ['admin'] },
+      { key: 'users', href: '/studio/users', label: t('users'), roles: ['admin'] },
     );
   }
 

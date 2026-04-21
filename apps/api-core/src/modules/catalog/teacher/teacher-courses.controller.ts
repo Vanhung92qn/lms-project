@@ -86,6 +86,13 @@ export class TeacherCoursesController {
     return this.courses.unpublish(user, id);
   }
 
+  @Get(':id/analytics')
+  @ApiOperation({ summary: 'Aggregated metrics for a course (enrolments, submissions, AC rate, weakest concepts)' })
+  analytics(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    this.requireTeacher(user);
+    return this.courses.analytics(user, id);
+  }
+
   @Post(':id/modules')
   @ApiOperation({ summary: 'Append a new module to a course' })
   addModule(
