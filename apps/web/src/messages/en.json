@@ -213,7 +213,9 @@
       "topups": "Top-up approvals",
       "users": "Users",
       "metrics": "Metrics",
-      "logout": "Sign out"
+      "logout": "Sign out",
+      "back_to_site": "Back to main site",
+      "student_dashboard": "Student dashboard"
     },
     "new_course": {
       "title": "New course",

@@ -222,6 +222,90 @@ async function seedKnowledgeGraph(): Promise<void> {
   }
 }
 
+/**
+ * Pre-wire the demo course's lessons to knowledge nodes so the mastery
+ * pipeline (BKT → dashboard widget + recommendations) lights up on a
+ * fresh seed without anyone having to hit the tagging UI first.
+ *
+ * Map: lesson title → knowledge-node slugs.
+ */
+const DEMO_LESSON_TAGS: Record<string, string[]> = {
+  'Hello, world!': ['io-basics', 'variables-types'],
+  'Chào mừng đến với C++': ['io-basics'],
+};
+
+async function tagDemoLessons(): Promise<void> {
+  for (const [lessonTitle, slugs] of Object.entries(DEMO_LESSON_TAGS)) {
+    const lesson = await prisma.lesson.findFirst({
+      where: { title: lessonTitle, module: { course: { slug: 'cpp-from-zero' } } },
+    });
+    if (!lesson) continue;
+
+    const nodes = await prisma.knowledgeNode.findMany({
+      where: { slug: { in: slugs } },
+    });
+    // Replace strategy — idempotent on re-seed.
+    await prisma.lessonKnowledgeNode.deleteMany({ where: { lessonId: lesson.id } });
+    if (nodes.length > 0) {
+      await prisma.lessonKnowledgeNode.createMany({
+        data: nodes.map((n) => ({ lessonId: lesson.id, nodeId: n.id })),
+      });
+    }
+  }
+}
+
+/**
+ * Seed a handful of demo mastery rows for student@khohoc.online so the
+ * dashboard widgets (Mastery + Recommendations) light up immediately on
+ * first login — otherwise demo viewers see an empty dashboard until
+ * the student actually submits an AC.
+ *
+ * Values deliberately span the spectrum (0.85 strong → 0.15 weak) so
+ * the widget's 'strengths' and 'weaknesses' columns both have content.
+ */
+const DEMO_MASTERY: Array<{ slug: string; score: number; attempts: number }> = [
+  { slug: 'io-basics', score: 0.85, attempts: 7 },
+  { slug: 'variables-types', score: 0.72, attempts: 5 },
+  { slug: 'loops', score: 0.55, attempts: 3 },
+  { slug: 'functions', score: 0.35, attempts: 2 },
+  { slug: 'pointers', score: 0.15, attempts: 1 },
+];
+
+async function seedDemoMastery(): Promise<void> {
+  const student = await prisma.user.findUnique({ where: { email: 'student@khohoc.online' } });
+  if (!student) return;
+  for (const m of DEMO_MASTERY) {
+    const node = await prisma.knowledgeNode.findUnique({ where: { slug: m.slug } });
+    if (!node) continue;
+    await prisma.userMastery.upsert({
+      where: { userId_nodeId: { userId: student.id, nodeId: node.id } },
+      update: {
+        score: m.score,
+        attempts: m.attempts,
+        confidence: m.attempts / (m.attempts + 5),
+        lastUpdatedAt: new Date(),
+      },
+      create: {
+        userId: student.id,
+        nodeId: node.id,
+        score: m.score,
+        attempts: m.attempts,
+        confidence: m.attempts / (m.attempts + 5),
+      },
+    });
+  }
+  // Auto-enrol demo student in cpp-from-zero so Dashboard routes to the
+  // "courses-present" branch (Mastery widget only shows there).
+  const course = await prisma.course.findUnique({ where: { slug: 'cpp-from-zero' } });
+  if (course) {
+    await prisma.enrollment.upsert({
+      where: { userId_courseId: { userId: student.id, courseId: course.id } },
+      update: {},
+      create: { userId: student.id, courseId: course.id },
+    });
+  }
+}
+
 async function main() {
   console.warn('[seed] upserting roles');
   await upsertRoles();
@@ -236,6 +320,12 @@ async function main() {
 
   console.warn('[seed] seeding knowledge graph (15 nodes, 14 prereq edges)');
   await seedKnowledgeGraph();
+
+  console.warn('[seed] tagging demo lessons with knowledge nodes');
+  await tagDemoLessons();
+
+  console.warn('[seed] seeding demo mastery for student@khohoc.online');
+  await seedDemoMastery();
 
   console.warn('[seed] done');
 }

@@ -2,25 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { useSession } from '@/lib/session';
 import { api, ApiError, type WalletTopupDto, type TopupStatus } from '@/lib/api';
 
 /**
  * Admin-only top-up approval console. Approve → wallet balance credits
  * atomically; course purchases happen later, zero admin involvement.
+ *
+ * NOTE: the shared AdminLayout is already applied by
+ * apps/web/src/app/[locale]/studio/layout.tsx — don't wrap again here.
  */
 export default function AdminTopupsPage() {
   const { user, isLoading } = useSession();
-  return (
-    <AdminLayout>
-      {isLoading ? null : !user?.roles.includes('admin') ? (
-        <ForbiddenState />
-      ) : (
-        <TopupsConsole />
-      )}
-    </AdminLayout>
-  );
+  if (isLoading) return null;
+  if (!user?.roles.includes('admin')) return <ForbiddenState />;
+  return <TopupsConsole />;
 }
 
 function ForbiddenState() {

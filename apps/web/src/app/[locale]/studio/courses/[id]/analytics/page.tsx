@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { Link } from '@/lib/i18n/routing';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -11,22 +10,13 @@ import { useSession } from '@/lib/session';
 type Analytics = Awaited<ReturnType<typeof api.teacher.analytics>>;
 
 /**
- * Per-course analytics page for the owning teacher.
- *   - Top summary strip: enrolments, unique submitters, total submissions,
- *     AC rate.
- *   - Per-lesson AC rate, sorted hardest-first so the teacher sees where
- *     the class is stuck.
- *   - Top weakest concepts across all submissions in the course.
+ * Per-course analytics for the owning teacher. AdminLayout already
+ * comes from studio/layout.tsx, so we just render the view here.
  */
 export default function AnalyticsPage() {
   const { user, isLoading } = useSession();
-  return (
-    <AdminLayout>
-      {isLoading || !user ? null : (
-        <AnalyticsView />
-      )}
-    </AdminLayout>
-  );
+  if (isLoading || !user) return null;
+  return <AnalyticsView />;
 }
 
 function AnalyticsView() {
