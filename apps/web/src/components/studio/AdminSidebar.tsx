@@ -25,7 +25,7 @@ export function AdminSidebar() {
   ];
   if (isAdmin) {
     items.push(
-      { key: 'payments', href: '/studio/payments', label: t('payments'), roles: ['admin'] },
+      { key: 'topups', href: '/studio/topups', label: t('topups'), roles: ['admin'] },
       { key: 'users', href: '/studio', label: t('users'), roles: ['admin'] },
       { key: 'metrics', href: '/studio', label: t('metrics'), roles: ['admin'] },
     );

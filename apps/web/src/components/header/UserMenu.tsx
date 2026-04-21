@@ -75,6 +75,7 @@ export function UserMenu() {
 
           <MenuLink href="/profile" label={t('profile')} onNavigate={() => setOpen(false)} />
           <MenuLink href="/dashboard" label={t('dashboard')} onNavigate={() => setOpen(false)} />
+          <MenuLink href="/wallet" label={t('wallet')} onNavigate={() => setOpen(false)} />
 
           {user.roles.includes('teacher') || user.roles.includes('admin') ? (
             <MenuLink href="/studio" label={t('studio')} onNavigate={() => setOpen(false)} />
@@ -101,7 +102,7 @@ function MenuLink({
   label,
   onNavigate,
 }: {
-  href: '/profile' | '/dashboard' | '/studio';
+  href: '/profile' | '/dashboard' | '/wallet' | '/studio';
   label: string;
   onNavigate: () => void;
 }) {

@@ -32,27 +32,31 @@ enum RoleName {
 }
 
 model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String     @unique @db.Citext
-  passwordHash  String     @map("password_hash")
-  displayName   String     @map("display_name")
-  avatarUrl     String?    @map("avatar_url")
-  locale        String     @default("vi")
-  status        UserStatus @default(active)
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                  String     @id @default(uuid()) @db.Uuid
+  email               String     @unique @db.Citext
+  passwordHash        String     @map("password_hash")
+  displayName         String     @map("display_name")
+  avatarUrl           String?    @map("avatar_url")
+  locale              String     @default("vi")
+  status              UserStatus @default(active)
+  // Denormalised wallet balance (VND cents). Source of truth — any write
+  // must happen inside the same transaction as a WalletTopup.approve or
+  // Entitlement.purchase so we never drift.
+  walletBalanceCents  Int        @default(0) @map("wallet_balance_cents")
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  userRoles      UserRole[]
-  refreshTokens  RefreshToken[]
-  auditLogs      AuditLog[]
-  oauthAccounts  OAuthAccount[]
-  coursesTaught  Course[]       @relation("CoursesTaught")
-  enrollments    Enrollment[]
-  submissions    Submission[]
-  mastery        UserMastery[]
-  payments       Payment[]      @relation("UserPayments")
-  approvedPayments Payment[]    @relation("AdminApprovedPayments")
-  entitlements   Entitlement[]
+  userRoles          UserRole[]
+  refreshTokens      RefreshToken[]
+  auditLogs          AuditLog[]
+  oauthAccounts      OAuthAccount[]
+  coursesTaught      Course[]       @relation("CoursesTaught")
+  enrollments        Enrollment[]
+  submissions        Submission[]
+  mastery            UserMastery[]
+  walletTopups       WalletTopup[]  @relation("UserTopups")
+  approvedTopups     WalletTopup[]  @relation("AdminApprovedTopups")
+  entitlements       Entitlement[]
 
   @@index([status])
   @@map("users")
@@ -122,7 +126,6 @@ model Course {
   teacher       User          @relation("CoursesTaught", fields: [teacherId], references: [id])
   modules       Module[]
   enrollments   Enrollment[]
-  payments      Payment[]
   entitlements  Entitlement[]
 
   @@index([status, publishedAt])
@@ -274,62 +277,59 @@ model Enrollment {
 }
 
 // -----------------------------------------------------------------------------
-// Billing v1 (P6) — manual MoMo / bank-transfer approval.
+// Billing v1 (P6) — wallet-based manual top-up.
 //
-// Automated gateway integrations (MoMo IPN, VNPay, Stripe) ship later. For
-// MVP the flow is:
-//   1. Student clicks "Mua khóa" on a paid course.
-//   2. FE shows MoMo QR + bank info; student transfers + enters their
-//      note (txn ref, screenshot URL, etc.) + submits.
-//   3. Payment row lands with status=pending.
-//   4. Admin sees pending list in /admin/payments, verifies the real
-//      transfer, clicks Approve → Entitlement row is created and the
-//      student gets access.
-//   5. Rejected payments keep the row with an admin note for audit.
+// Flow:
+//   1. Student requests a top-up: chooses amount + method, receives a
+//      unique `referenceCode` (e.g. TOPUP-A3F9C1) that becomes the bank
+//      transfer note. WalletTopup row lands as `pending`.
+//   2. Student transfers via MoMo / VietQR using that reference.
+//   3. Admin sees pending list in /studio/topups, verifies the real
+//      transfer, clicks Approve → `users.wallet_balance_cents += amount`
+//      inside the same tx as the status flip. Rejected → no balance change.
+//   4. Student buys any paid course — one-click deduct from wallet,
+//      creates `Entitlement` + `Enrollment`, zero admin involvement.
 //
-// Entitlements are the access source of truth; Enrollment remains the
-// progress / UX relation (created on free courses or copied from
-// Entitlement on paid ones).
+// Decoupling top-up from course purchase means admin reviews money, not
+// access; any student with sufficient balance can buy any course instantly.
 // -----------------------------------------------------------------------------
 
-enum PaymentMethod {
+enum TopupMethod {
   momo
   bank
 }
 
-enum PaymentStatus {
+enum TopupStatus {
   pending
   approved
   rejected
   cancelled
 }
 
-model Payment {
-  id              String         @id @default(uuid()) @db.Uuid
-  userId          String         @map("user_id") @db.Uuid
-  courseId        String         @map("course_id") @db.Uuid
-  amountCents     Int            @map("amount_cents")
-  currency        String         @default("VND") @db.Char(3)
-  method          PaymentMethod
-  status          PaymentStatus  @default(pending)
-  // Free-form note from the student (txn id, screenshot URL, etc.)
-  userNote        String?        @map("user_note") @db.Text
-  // Free-form note from the admin explaining the decision.
-  adminNote       String?        @map("admin_note") @db.Text
-  approvedById    String?        @map("approved_by_id") @db.Uuid
-  approvedAt      DateTime?      @map("approved_at") @db.Timestamptz(6)
-  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+model WalletTopup {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @map("user_id") @db.Uuid
+  amountCents     Int          @map("amount_cents")
+  currency        String       @default("VND") @db.Char(3)
+  method          TopupMethod
+  status          TopupStatus  @default(pending)
+  // Human-readable short code the student uses as the bank transfer
+  // memo. Must be globally unique so admins can match a pending row
+  // from just the memo field.
+  referenceCode   String       @unique @map("reference_code")
+  userNote        String?      @map("user_note") @db.Text
+  adminNote       String?      @map("admin_note") @db.Text
+  approvedById    String?      @map("approved_by_id") @db.Uuid
+  approvedAt      DateTime?    @map("approved_at") @db.Timestamptz(6)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user            User           @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
-  course          Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  approvedBy      User?          @relation("AdminApprovedPayments", fields: [approvedById], references: [id], onDelete: SetNull)
-  entitlement     Entitlement?
+  user            User         @relation("UserTopups", fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy      User?        @relation("AdminApprovedTopups", fields: [approvedById], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
-  @@index([courseId])
-  @@map("payments")
+  @@map("wallet_topups")
 }
 
 enum EntitlementSource {
@@ -343,14 +343,16 @@ model Entitlement {
   userId        String             @map("user_id") @db.Uuid
   courseId      String             @map("course_id") @db.Uuid
   source        EntitlementSource
-  paymentId     String?            @unique @map("payment_id") @db.Uuid
+  // Snapshot of what the student paid at the moment of purchase.
+  // Decoupled from Course.priceCents so later price changes don't
+  // retro-affect the audit trail.
+  amountCents   Int                @default(0) @map("amount_cents")
   grantedAt     DateTime           @default(now()) @map("granted_at") @db.Timestamptz(6)
   expiresAt     DateTime?          @map("expires_at") @db.Timestamptz(6)
   revokedAt     DateTime?          @map("revoked_at") @db.Timestamptz(6)
 
   user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   course        Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  payment       Payment?           @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   @@unique([userId, courseId])
   @@index([userId])

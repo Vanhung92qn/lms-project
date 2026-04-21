@@ -26,6 +26,7 @@
     "trigger": "Mở menu tài khoản",
     "profile": "Hồ sơ cá nhân",
     "dashboard": "Bảng điều khiển",
+    "wallet": "Ví của tôi",
     "studio": "Studio giảng viên",
     "logout": "Đăng xuất"
   },
@@ -173,30 +174,14 @@
     "go_dashboard": "Về bảng điều khiển",
     "start_learning": "Bắt đầu học →",
     "purchase": {
-      "buy_cta": "Mua khoá học · {price}",
+      "buy_cta": "Mua ngay · {price}",
       "login_to_purchase": "Đăng nhập để mua",
       "already_purchased": "Bạn đã mua khoá này",
       "start_learning": "Bắt đầu học →",
       "go_dashboard": "Về bảng điều khiển",
-      "pending_title": "Đang chờ admin duyệt",
-      "pending_body": "Chúng tôi sẽ xác nhận biên lai trong ít giờ tới. Bạn sẽ nhận được quyền truy cập khoá học ngay khi được duyệt.",
-      "cancel_payment": "Huỷ yêu cầu thanh toán",
-      "confirm_cancel": "Bạn chắc chắn muốn huỷ yêu cầu thanh toán này?",
-      "modal_title": "Thanh toán khoá học",
-      "modal_subtitle": "Chuyển khoản theo một trong hai kênh dưới, ghi mã giao dịch, sau đó gửi yêu cầu để admin duyệt.",
-      "amount_due": "Số tiền cần chuyển",
-      "bank_transfer": "Chuyển khoản NH",
-      "momo_phone": "Số điện thoại MoMo",
-      "bank_name": "Ngân hàng",
-      "bank_account": "Số tài khoản",
-      "holder": "Chủ tài khoản",
-      "transfer_note_hint": "Gợi ý: trong nội dung chuyển khoản ghi email của bạn + slug khoá học để admin đối chiếu nhanh.",
-      "note_label": "Thông tin giao dịch (bắt buộc)",
-      "note_placeholder": "Ví dụ: MoMo 15:30 21/04, mã giao dịch 1234567890, ảnh biên lai: https://…",
-      "note_required": "Vui lòng nhập thông tin giao dịch để admin đối chiếu.",
-      "cancel": "Huỷ",
-      "submit_cta": "Gửi yêu cầu duyệt",
-      "submit_failed": "Gửi yêu cầu thất bại. Vui lòng thử lại."
+      "topup_cta": "Nạp thêm {missing} để mua",
+      "topup_cta_generic": "Nạp tiền để mua",
+      "balance_hint": "Số dư ví: {balance}"
     }
   },
   "studio": {
@@ -218,7 +203,7 @@
     "sidebar": {
       "overview": "Tổng quan",
       "courses": "Khoá học",
-      "payments": "Thanh toán",
+      "topups": "Duyệt nạp tiền",
       "users": "Người dùng",
       "metrics": "Thống kê",
       "logout": "Đăng xuất"
@@ -275,14 +260,56 @@
       }
     }
   },
+  "wallet": {
+    "title": "Ví của tôi",
+    "subtitle": "Nạp tiền 1 lần, dùng số dư mua nhiều khoá tức thì.",
+    "balance_label": "Số dư hiện tại",
+    "topup_cta": "Nạp tiền",
+    "hide_form": "Ẩn form",
+    "history_title": "Lịch sử nạp tiền",
+    "history_empty": "Bạn chưa có giao dịch nạp nào.",
+    "ref_label": "Mã tham chiếu",
+    "scan_to_pay": "Quét QR để chuyển khoản",
+    "auto_fill_hint": "Ứng dụng ngân hàng sẽ tự động điền số tiền + nội dung chuyển khoản.",
+    "momo_manual_hint": "Chuyển MoMo với nội dung: {ref}",
+    "admin_note": "Ghi chú từ admin",
+    "cancel": "Huỷ yêu cầu",
+    "confirm_cancel": "Bạn chắc chắn muốn huỷ yêu cầu này?",
+    "form": {
+      "title": "Tạo yêu cầu nạp tiền",
+      "amount_label": "Số tiền (VND)",
+      "amount_placeholder": "VD: 100000",
+      "amount_too_small": "Số tiền tối thiểu là 10.000 đ",
+      "method_label": "Phương thức",
+      "method_bank": "Chuyển khoản NH",
+      "hint": "Hệ thống sẽ tạo mã tham chiếu duy nhất. Bạn chuyển khoản với đúng nội dung đó để admin đối chiếu nhanh.",
+      "note_label": "Ghi chú (tuỳ chọn)",
+      "note_placeholder": "VD: nạp để mua khoá C++ nâng cao…",
+      "submit_cta": "Tạo yêu cầu",
+      "submit_failed": "Tạo yêu cầu thất bại."
+    },
+    "instructions": {
+      "destination": "Chuyển đến",
+      "momo_phone": "Số điện thoại MoMo",
+      "bank_name": "Ngân hàng",
+      "bank_account": "Số tài khoản",
+      "holder": "Chủ tài khoản"
+    },
+    "status": {
+      "pending": "Chờ duyệt",
+      "approved": "Đã duyệt",
+      "rejected": "Từ chối",
+      "cancelled": "Đã huỷ"
+    }
+  },
   "admin": {
-    "payments": {
-      "title": "Duyệt thanh toán",
-      "subtitle": "Xem và duyệt tay các yêu cầu nạp từ học viên.",
+    "topups": {
+      "title": "Duyệt nạp tiền",
+      "subtitle": "Xác nhận các yêu cầu nạp tiền từ học viên.",
       "admin_only": "Chỉ admin mới có quyền xem trang này.",
-      "empty": "Không có giao dịch nào ở trạng thái này.",
+      "empty": "Không có giao dịch ở trạng thái này.",
+      "col_ref": "Mã tham chiếu",
       "col_user": "Học viên",
-      "col_course": "Khoá học",
       "col_amount": "Số tiền",
       "col_method": "Kênh",
       "col_note": "Ghi chú HV",
@@ -291,13 +318,13 @@
       "approve": "Duyệt",
       "reject": "Từ chối",
       "cancel": "Huỷ",
-      "confirm_approve": "Xác nhận đã nhận được tiền và cấp quyền truy cập khoá học?",
+      "confirm_approve": "Xác nhận đã nhận được {amount} và cộng vào ví học viên?",
       "default_reject_note": "Không khớp biên lai",
-      "reject_note_placeholder": "Ghi chú lý do từ chối (tuỳ chọn)…",
+      "reject_note_placeholder": "Ghi chú lý do (tuỳ chọn)…",
       "confirm_reject": "Xác nhận từ chối",
       "status": {
-        "pending": "Đang chờ",
-        "approved": "Đã duyệt",
+        "pending": "Chờ",
+        "approved": "Duyệt",
         "rejected": "Từ chối",
         "cancelled": "Đã huỷ"
       }

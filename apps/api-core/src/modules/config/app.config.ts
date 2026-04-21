@@ -48,14 +48,16 @@ export const appConfig = registerAs('app', () => ({
     // routing is viable — the key itself is consumed inside ai-gateway.
     deepseek: { apiKey: process.env.DEEPSEEK_API_KEY ?? '' },
   },
-  // Billing v1 (P6) — values shown to students in the purchase form.
-  // Kept as plain env because there are exactly two providers and a
-  // small static set of fields. Swap for a DB-backed settings table
-  // when we add per-teacher receiving accounts.
+  // Billing v1 (P6) — wallet-based manual top-up.
+  // Values are shown to students in the top-up modal + baked into the
+  // VietQR URL the server generates for bank transfers. `bankBin` is
+  // the VietQR short code (e.g. VCB, TCB, MB) — without it, only plain
+  // bank info is shown, the QR is empty.
   billing: {
     momoPhone: process.env.MOMO_PHONE ?? '',
     momoHolder: process.env.MOMO_HOLDER ?? '',
     momoQrUrl: process.env.MOMO_QR_URL ?? '',
+    bankBin: process.env.BANK_BIN ?? '',
     bankName: process.env.BANK_NAME ?? '',
     bankAccount: process.env.BANK_ACCOUNT ?? '',
     bankHolder: process.env.BANK_HOLDER ?? '',
