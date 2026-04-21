@@ -347,6 +347,7 @@ function BottomPanel({
             error={error}
             loading={loading}
             sampleCases={sampleCases}
+            lessonId={lessonId}
           />
         </div>
         <div className={`absolute inset-0 ${tab === 'tutor' ? '' : 'hidden'}`}>
@@ -401,11 +402,13 @@ function TerminalPanel({
   error,
   loading,
   sampleCases,
+  lessonId,
 }: {
   submission: Submission | null;
   error: string | null;
   loading: boolean;
   sampleCases: Array<{ id: string; input: string; expected_output: string }>;
+  lessonId: string;
 }) {
   const t = useTranslations('lesson');
 
@@ -446,9 +449,88 @@ function TerminalPanel({
             <pre className="whitespace-pre-wrap text-text-muted">{submission.stderr ?? ''}</pre>
           </div>
         ) : (
-          <TestResultsTable submission={submission} sampleById={sampleById} />
+          <>
+            {submission.verdict === 'ac' ? (
+              <CompletionBanner lessonId={lessonId} />
+            ) : null}
+            <TestResultsTable submission={submission} sampleById={sampleById} />
+          </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Shown above the verdict table when the submission is AC. Fetches the
+ * next-lesson suggestion from the Knowledge Graph (prereq-gated by
+ * mastery) and renders it as a CTA. Suppresses itself when the student
+ * is already at the last lesson of the course.
+ */
+function CompletionBanner({ lessonId }: { lessonId: string }) {
+  const t = useTranslations('lesson.completion');
+  const [suggestion, setSuggestion] = useState<
+    | { lessonId: string; title: string; courseSlug: string; gatedByPrereq: boolean }
+    | null
+    | undefined
+  >(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = (() => {
+      try {
+        return sessionStorage.getItem('lms-access');
+      } catch {
+        return null;
+      }
+    })();
+    if (!token) return;
+    (async () => {
+      try {
+        const data = await api.knowledge.nextSuggestion(token, lessonId);
+        if (!cancelled) setSuggestion(data);
+      } catch {
+        if (!cancelled) setSuggestion(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonId]);
+
+  return (
+    <div
+      className="mb-3 flex flex-col gap-2 rounded-box border px-3 py-3"
+      style={{ borderColor: 'rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.08)' }}
+    >
+      <p className="font-sans text-sm font-semibold" style={{ color: '#22c55e' }}>
+        ✓ {t('great_job')}
+      </p>
+      {suggestion === undefined ? (
+        <p className="font-sans text-xs text-text-muted">{t('loading')}</p>
+      ) : suggestion === null ? (
+        <p className="font-sans text-xs text-text-muted">{t('course_end')}</p>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-sans text-xs text-text-muted">{t('next_up')}</p>
+            <p className="truncate font-sans text-sm text-text">{suggestion.title}</p>
+            {suggestion.gatedByPrereq ? (
+              <p className="mt-1 font-sans text-[11px]" style={{ color: '#f59e0b' }}>
+                ⚠ {t('prereq_warning')}
+              </p>
+            ) : null}
+          </div>
+          <Link
+            href={
+              `/courses/${suggestion.courseSlug}/learn/${suggestion.lessonId}` as never
+            }
+            className="rounded-pill bg-accent px-4 py-1.5 font-sans text-xs font-semibold text-panel transition-colors hover:bg-accent-hover"
+          >
+            {t('continue_cta')} →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
