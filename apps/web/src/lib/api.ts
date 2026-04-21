@@ -499,4 +499,36 @@ export const api = {
         headers: authHeaders(token),
       }),
   },
+
+  // Cold-start onboarding (P9.0 PR D). GET returns `{ profile: null }`
+  // for brand-new users; PUT creates or updates it. After the first PUT
+  // the recommendation endpoint starts returning goal-matched courses.
+  onboarding: {
+    get: (token: string) =>
+      request<{ profile: OnboardingProfileDto | null }>('/me/onboarding', {
+        headers: authHeaders(token),
+      }),
+    upsert: (
+      token: string,
+      dto: {
+        goals: string[];
+        level: 'novice' | 'learning-basics' | 'intermediate';
+        weekly_hours: '<2' | '2-5' | '5-10' | '10+';
+        known_languages?: string[];
+      },
+    ) =>
+      request<{ profile: OnboardingProfileDto }>('/me/onboarding', {
+        method: 'PUT',
+        body: JSON.stringify(dto),
+        headers: authHeaders(token),
+      }),
+  },
 };
+
+export interface OnboardingProfileDto {
+  goals: string[];
+  level: string;
+  weekly_hours: string;
+  known_languages: string[];
+  completed_at: string;
+}

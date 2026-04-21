@@ -198,6 +198,53 @@
       "helper": "Done reading? Tap below to save your progress — no quiz required."
     }
   },
+  "onboarding": {
+    "title": "Welcome! Let's tailor your learning track",
+    "subtitle": "Three quick questions so the AI can recommend courses that match your goals. You can skip and fill in later.",
+    "step": "Step {n}/{total}",
+    "step1_title": "What do you want to learn?",
+    "step1_hint": "Pick 1–3 goals. You can refine this list later after submitting a few exercises.",
+    "step2_title": "Your current level?",
+    "step3_title": "How many hours per week?",
+    "next": "Next →",
+    "back": "← Back",
+    "finish": "Start learning",
+    "skip": "Skip for now",
+    "saving": "Saving…",
+    "save_failed": "Could not save. Try again.",
+    "select_min": "Pick at least one goal",
+    "goals": {
+      "cpp-foundation": "C++ foundations",
+      "cpp-foundation_desc": "Compiled language — the backbone of OOP, games, systems",
+      "python-basics": "Python basics",
+      "python-basics_desc": "Easy to read, great for AI / data / automation",
+      "web-dev": "Web development",
+      "web-dev_desc": "HTML / CSS / JavaScript — frontend or backend",
+      "data-analysis": "Data analysis",
+      "data-analysis_desc": "Pandas, SQL, charts — transition into data roles",
+      "algorithms": "Algorithms & interview prep",
+      "algorithms_desc": "Prepare for LeetCode / FAANG-style interview rounds",
+      "theory-foundation": "CS theory",
+      "theory-foundation_desc": "Software engineering, networking, databases, OS"
+    },
+    "levels": {
+      "novice": "Complete beginner — never written code",
+      "learning-basics": "Picking it up — I know basic syntax",
+      "intermediate": "Intermediate — I can build small apps"
+    },
+    "hours": {
+      "<2": "Under 2 hours",
+      "2-5": "2 – 5 hours",
+      "5-10": "5 – 10 hours",
+      "10+": "More than 10 hours"
+    },
+    "banner": {
+      "title": "Fill a 3-question survey so the AI can recommend better",
+      "subtitle": "Three questions — takes 30 seconds — swaps the default pick for something tailored to your goals.",
+      "cta": "Fill it out",
+      "dismiss": "Later"
+    }
+  },
   "catalog": {
     "title": "All courses",
     "subtitle": "Pick a learning track — every lesson ships with a sandbox and AI-tutor support.",

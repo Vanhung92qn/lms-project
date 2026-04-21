@@ -8,6 +8,7 @@ import { useSession } from '@/lib/session';
 import type { CourseSummary } from '@lms/shared-types';
 import { MasteryWidget } from './MasteryWidget';
 import { RecommendationsWidget } from './RecommendationsWidget';
+import { OnboardingBanner } from './OnboardingBanner';
 
 // Student dashboard. Session state (user profile) comes from SessionProvider;
 // enrolled courses are fetched from /me/enrollments once we have a token.
@@ -63,6 +64,8 @@ export default function DashboardPage() {
         </h1>
         <p className="mt-2 text-text-muted">{t('subtitle')}</p>
       </header>
+
+      <OnboardingBanner />
 
       {error ? (
         <div className="card text-center">

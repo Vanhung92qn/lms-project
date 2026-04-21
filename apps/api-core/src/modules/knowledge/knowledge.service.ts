@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { OnboardingService } from '../onboarding/onboarding.service';
 
 export interface KnowledgeNodeDto {
   id: string;
@@ -25,7 +26,10 @@ export interface UserMasteryRowDto {
 
 @Injectable()
 export class KnowledgeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly onboarding: OnboardingService,
+  ) {}
 
   /** Public vocabulary — used by the teacher tagging UI and the student
    * dashboard widget. Filterable by `domain` (e.g. 'cpp' only). */
@@ -119,6 +123,41 @@ export class KnowledgeService {
     });
 
     if (mastery.length === 0) {
+      // Cold start cascade (PR D, 2026-04-21):
+      //   a. onboarding profile present → match declared goals + level
+      //      against the course catalog (goal → slug list). Personalised
+      //      even on zero submissions.
+      //   b. otherwise → fall back to "most popular" by enrolment count.
+      const profile = await this.onboarding.findByUserId(userId);
+      if (profile && profile.goals.length > 0) {
+        const rankedSlugs = this.onboarding.coursesForProfile(profile);
+        if (rankedSlugs.length > 0) {
+          const matched = await this.prisma.course.findMany({
+            where: {
+              slug: { in: rankedSlugs },
+              status: 'published',
+              ...(enrolledIds.size > 0 ? { id: { notIn: Array.from(enrolledIds) } } : {}),
+            },
+          });
+          // Re-sort to match the rank emitted by the matcher — Postgres
+          // returns rows in insertion order, which doesn't respect goal
+          // priority.
+          const rankIdx = new Map(rankedSlugs.map((s, i) => [s, i]));
+          matched.sort((a, b) => (rankIdx.get(a.slug) ?? 999) - (rankIdx.get(b.slug) ?? 999));
+          if (matched.length > 0) {
+            return matched.slice(0, limit).map((c) => ({
+              id: c.id,
+              slug: c.slug,
+              title: c.title,
+              description: c.description,
+              pricingModel: c.pricingModel,
+              priceCents: c.priceCents,
+              matchedNodes: profile.goals,
+            }));
+          }
+        }
+      }
+
       const popular = await this.prisma.course.findMany({
         where: {
           status: 'published',

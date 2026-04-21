@@ -198,6 +198,53 @@
       "helper": "Đọc xong rồi? Nhấn nút dưới đây để lưu tiến độ, không cần làm quiz."
     }
   },
+  "onboarding": {
+    "title": "Chào mừng! Chọn lộ trình của bạn",
+    "subtitle": "3 câu hỏi nhanh để AI gợi ý chính xác khoá học phù hợp. Có thể bỏ qua và điền lại sau.",
+    "step": "Bước {n}/{total}",
+    "step1_title": "Bạn muốn học gì?",
+    "step1_hint": "Chọn 1–3 mục tiêu. Kéo dài danh sách này sau khi bắt đầu nộp bài.",
+    "step2_title": "Trình độ hiện tại?",
+    "step3_title": "Bạn dành bao nhiêu giờ mỗi tuần?",
+    "next": "Tiếp →",
+    "back": "← Quay lại",
+    "finish": "Bắt đầu học",
+    "skip": "Bỏ qua, tôi sẽ điền sau",
+    "saving": "Đang lưu…",
+    "save_failed": "Không lưu được. Thử lại.",
+    "select_min": "Chọn ít nhất 1 mục tiêu",
+    "goals": {
+      "cpp-foundation": "C++ nền tảng",
+      "cpp-foundation_desc": "Ngôn ngữ biên dịch, nền móng cho OOP, game, systems",
+      "python-basics": "Python cơ bản",
+      "python-basics_desc": "Dễ học, dùng rộng cho AI, data, automation",
+      "web-dev": "Phát triển web",
+      "web-dev_desc": "HTML / CSS / JavaScript — frontend hoặc backend",
+      "data-analysis": "Phân tích dữ liệu",
+      "data-analysis_desc": "Pandas, SQL, visualisation — chuyển nghề data",
+      "algorithms": "Thuật toán & phỏng vấn",
+      "algorithms_desc": "Chuẩn bị cho LeetCode / vòng phỏng vấn tech",
+      "theory-foundation": "Lý thuyết nền",
+      "theory-foundation_desc": "Kỹ thuật phần mềm, mạng, CSDL, OS"
+    },
+    "levels": {
+      "novice": "Hoàn toàn mới — chưa biết gì về lập trình",
+      "learning-basics": "Đã làm quen — biết cú pháp cơ bản",
+      "intermediate": "Trung cấp — đã code được ứng dụng đơn giản"
+    },
+    "hours": {
+      "<2": "Dưới 2 giờ",
+      "2-5": "2 – 5 giờ",
+      "5-10": "5 – 10 giờ",
+      "10+": "Trên 10 giờ"
+    },
+    "banner": {
+      "title": "Điền bảng hỏi nhanh để AI gợi ý chính xác hơn",
+      "subtitle": "3 câu — mất 30 giây — đổi khoá mặc định thành khoá phù hợp với mục tiêu của bạn.",
+      "cta": "Điền ngay",
+      "dismiss": "Để sau"
+    }
+  },
   "catalog": {
     "title": "Tất cả khoá học",
     "subtitle": "Chọn một lộ trình để bắt đầu — mỗi bài học đều có sandbox code và AI Tutor hỗ trợ.",
