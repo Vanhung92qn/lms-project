@@ -16,7 +16,8 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:massive": "ts-node --transpile-only prisma/seed-massive.ts"
   },
   "dependencies": {
     "@lms/shared-types": "workspace:*",
