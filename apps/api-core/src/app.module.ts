@@ -12,6 +12,7 @@ import { AssessmentModule } from './modules/assessment/assessment.module';
 import { AiModule } from './modules/ai/ai.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -43,6 +44,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     AiModule,
     KnowledgeModule,
     WalletModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
