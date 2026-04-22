@@ -115,4 +115,72 @@ export class TelemetryService {
       this.log.warn(`recordEvent failed: ${(e as Error).message}`);
     }
   }
+
+  // ---- Read helpers (P9.1 Teacher Insight) --------------------------------
+  //
+  // The teacher-insight endpoints aggregate ai_chats to show the most
+  // frequent / most recent student questions in a course. We expose a thin
+  // read method here rather than injecting MongoService directly into the
+  // teacher module so the "every Mongo access goes through telemetry"
+  // invariant stays.
+
+  /**
+   * Return the most-recent user questions across a set of lessons, flattened
+   * out of the per-session ai_chats documents. Each row represents one user
+   * turn with its matching lesson id so the caller can join against
+   * Postgres lesson titles. Returns [] when Mongo is offline.
+   */
+  async recentUserQuestions(
+    lessonIds: string[],
+    sinceDays = 30,
+    limit = 20,
+  ): Promise<
+    Array<{
+      lessonId: string | null;
+      userId: string;
+      provider: string;
+      question: string;
+      at: Date;
+    }>
+  > {
+    const col = this.mongo.aiChats;
+    if (!col || lessonIds.length === 0) return [];
+    try {
+      const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000);
+      const rows = await col
+        .find({ lessonId: { $in: lessonIds }, lastActivityAt: { $gte: since } })
+        .project({ userId: 1, lessonId: 1, provider: 1, messages: 1, lastActivityAt: 1 })
+        .sort({ lastActivityAt: -1 })
+        .limit(80) // 4 docs worth of turns ≈ 80 messages; trimmed after flatten
+        .toArray();
+
+      const out: Array<{
+        lessonId: string | null;
+        userId: string;
+        provider: string;
+        question: string;
+        at: Date;
+      }> = [];
+      for (const doc of rows) {
+        const messages = (doc as unknown as { messages?: Array<{ role: string; content: string; at: Date }> }).messages ?? [];
+        for (const m of messages) {
+          if (m.role !== 'user') continue;
+          if (!m.content?.trim()) continue;
+          out.push({
+            lessonId: (doc as unknown as { lessonId: string | null }).lessonId ?? null,
+            userId: (doc as unknown as { userId: string }).userId,
+            provider: (doc as unknown as { provider: string }).provider,
+            question: m.content.trim().slice(0, 500),
+            at: m.at,
+          });
+        }
+      }
+      // Newest first, capped at `limit`.
+      out.sort((a, b) => (b.at.getTime?.() ?? 0) - (a.at.getTime?.() ?? 0));
+      return out.slice(0, limit);
+    } catch (e) {
+      this.log.warn(`recentUserQuestions failed: ${(e as Error).message}`);
+      return [];
+    }
+  }
 }

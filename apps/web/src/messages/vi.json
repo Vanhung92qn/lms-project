@@ -331,6 +331,7 @@
       "unpublish": "Thu hồi",
       "publish_failed": "Thao tác thất bại.",
       "view_analytics": "Xem thống kê",
+      "view_insights": "Xem Insights",
       "curriculum": "Chương trình học",
       "no_modules": "Chưa có chương nào.",
       "no_lessons": "Chưa có bài học.",
@@ -363,6 +364,36 @@
         "save": "Lưu",
         "saved": "Đã lưu",
         "sign_in_required": "Vui lòng đăng nhập."
+      }
+    },
+    "insights": {
+      "title": "Insights lớp học",
+      "subtitle": "Tín hiệu định tính cho giáo viên: sinh viên yếu chỗ nào, AI đang nhận câu hỏi gì, khoá còn thiếu concept nào.",
+      "back_to_edit": "← Quay lại chỉnh sửa khoá học",
+      "load_failed": "Không tải được insights.",
+      "heatmap": {
+        "title": "Bản đồ nhiệt lớp học",
+        "subtitle": "Mỗi ô = điểm BKT của học sinh với khái niệm đó. Đỏ = dưới 40%, vàng = 40-70%, xanh = trên 70%.",
+        "empty": "Chưa đủ dữ liệu để vẽ heatmap — cần ít nhất 1 học sinh có submission với concept đã tag.",
+        "students_col": "Học sinh",
+        "no_data": "—",
+        "showing": "Đang hiển thị {count} / {total} học sinh (sắp theo điểm yếu nhất trước)."
+      },
+      "tutor": {
+        "title": "AI Tutor đang nhận câu hỏi gì?",
+        "subtitle": "Top {limit} câu hỏi học sinh gửi AI trong {days} ngày qua. Lộ ra concept đang gây confusion.",
+        "empty": "Chưa có câu hỏi nào trong {days} ngày qua.",
+        "lesson_label": "Bài",
+        "provider_llama": "Llama (free)",
+        "provider_deepseek": "DeepSeek (paid)"
+      },
+      "coverage": {
+        "title": "Độ phủ concept",
+        "subtitle": "Khoá này dạy {taught}/{total} concept trong Knowledge Graph.",
+        "taught_heading": "Đã dạy ({n})",
+        "missing_heading": "Chưa có trong khoá ({n})",
+        "missing_prereqs_heading": "Prereq bị thiếu — nên cân nhắc thêm lesson ({n})",
+        "required_by": "cần cho:"
       }
     }
   },

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TelemetryService } from '../../telemetry/telemetry.service';
 import type { CreateCourseDto } from '../dto/create-course.dto';
 import type {
   CreateLessonDto,
@@ -24,7 +25,10 @@ import { courseSummaryFromPrisma } from '../mappers';
 
 @Injectable()
 export class TeacherCoursesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telemetry: TelemetryService,
+  ) {}
 
   private isAdmin(user: AuthenticatedUser): boolean {
     return user.roles.includes('admin');
@@ -263,6 +267,169 @@ export class TeacherCoursesService {
       acRate,
       perLesson: lessonStats,
       weakestConcepts,
+    };
+  }
+
+  // ==========================================================================
+  // P9.1 — Teacher Insight Layer
+  // ==========================================================================
+
+  /**
+   * Classroom Heatmap: enrolled students × knowledge concepts tagged in
+   * any lesson of this course. Each cell carries the BKT mastery score
+   * (0–1) + attempt count. Students are returned in enrolment order;
+   * concepts in domain / slug order. The frontend renders the grid with
+   * a red-yellow-green gradient so the teacher can spot weak concepts
+   * and struggling students at a glance.
+   */
+  async heatmap(user: AuthenticatedUser, courseId: string) {
+    await this.assertOwn(user, courseId);
+
+    const [enrollments, nodeRows] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { courseId },
+        orderBy: { enrolledAt: 'asc' },
+        select: {
+          user: { select: { id: true, displayName: true, email: true } },
+        },
+      }),
+      // concepts this course teaches — only those tagged by at least one lesson.
+      this.prisma.knowledgeNode.findMany({
+        where: { lessonTags: { some: { lesson: { module: { courseId } } } } },
+        orderBy: [{ domain: 'asc' }, { slug: 'asc' }],
+        select: { id: true, slug: true, title: true, domain: true },
+      }),
+    ]);
+
+    const students = enrollments.map((e) => ({
+      id: e.user.id,
+      display_name: e.user.displayName,
+      email: e.user.email,
+    }));
+    const concepts = nodeRows.map((n) => ({
+      id: n.id,
+      slug: n.slug,
+      title: n.title,
+      domain: n.domain,
+    }));
+
+    if (students.length === 0 || concepts.length === 0) {
+      return { course_id: courseId, students, concepts, cells: [] };
+    }
+
+    const masteryRows = await this.prisma.userMastery.findMany({
+      where: {
+        userId: { in: students.map((s) => s.id) },
+        nodeId: { in: concepts.map((c) => c.id) },
+      },
+      select: { userId: true, nodeId: true, score: true, attempts: true },
+    });
+
+    const slugByNodeId = new Map(concepts.map((c) => [c.id, c.slug]));
+    const cells = masteryRows.map((r) => ({
+      user_id: r.userId,
+      node_slug: slugByNodeId.get(r.nodeId) ?? '',
+      score: Number(r.score),
+      attempts: r.attempts,
+    }));
+
+    return { course_id: courseId, students, concepts, cells };
+  }
+
+  /**
+   * AI Tutor Insights: most-recent student questions (user turns) within
+   * the course's lessons, joined with lesson titles. Powers the teacher
+   * "top student questions this week" panel — the qualitative half of
+   * the analytics view. Empty array when Mongo is offline.
+   */
+  async tutorInsights(user: AuthenticatedUser, courseId: string) {
+    await this.assertOwn(user, courseId);
+
+    const lessons = await this.prisma.lesson.findMany({
+      where: { module: { courseId } },
+      select: { id: true, title: true },
+    });
+    if (lessons.length === 0) {
+      return { course_id: courseId, window_days: 30, questions: [] };
+    }
+    const titleById = new Map(lessons.map((l) => [l.id, l.title]));
+    const questions = await this.telemetry.recentUserQuestions(
+      lessons.map((l) => l.id),
+      30,
+      20,
+    );
+    return {
+      course_id: courseId,
+      window_days: 30,
+      questions: questions.map((q) => ({
+        lesson_id: q.lessonId,
+        lesson_title: q.lessonId ? titleById.get(q.lessonId) ?? null : null,
+        question: q.question,
+        provider: q.provider,
+        at: q.at,
+      })),
+    };
+  }
+
+  /**
+   * Concept Coverage Gap: which knowledge nodes are taught by this
+   * course's lessons vs which are in the full KG but missing here.
+   * Bonus: for every taught node, list its prereqs that ARE NOT taught
+   * in this course — those are the most actionable gaps (the teacher
+   * is skipping a stepping stone).
+   */
+  async coverageGap(user: AuthenticatedUser, courseId: string) {
+    await this.assertOwn(user, courseId);
+
+    const [allNodes, taughtRows, edges] = await Promise.all([
+      this.prisma.knowledgeNode.findMany({
+        orderBy: [{ domain: 'asc' }, { slug: 'asc' }],
+        select: { id: true, slug: true, title: true, domain: true },
+      }),
+      this.prisma.knowledgeNode.findMany({
+        where: { lessonTags: { some: { lesson: { module: { courseId } } } } },
+        select: { id: true, slug: true, title: true, domain: true },
+      }),
+      this.prisma.knowledgeEdge.findMany({
+        where: { relation: 'prereq' },
+        select: {
+          from: { select: { id: true, slug: true, title: true, domain: true } },
+          to: { select: { id: true, slug: true } },
+        },
+      }),
+    ]);
+
+    const taughtIds = new Set(taughtRows.map((n) => n.id));
+    const missing = allNodes.filter((n) => !taughtIds.has(n.id));
+
+    // missing_prereqs: for every taught node T, find edges (P→T, prereq)
+    // where P is not taught. Those are the lessons the teacher should
+    // consider adding.
+    const missingPrereqSet = new Map<
+      string,
+      { node: { slug: string; title: string; domain: string }; required_by: string[] }
+    >();
+    for (const edge of edges) {
+      if (!taughtIds.has(edge.to.id)) continue; // we only care about prereqs of taught concepts
+      if (taughtIds.has(edge.from.id)) continue; // already taught — not a gap
+      const existing = missingPrereqSet.get(edge.from.slug);
+      if (existing) {
+        existing.required_by.push(edge.to.slug);
+      } else {
+        missingPrereqSet.set(edge.from.slug, {
+          node: { slug: edge.from.slug, title: edge.from.title, domain: edge.from.domain },
+          required_by: [edge.to.slug],
+        });
+      }
+    }
+
+    return {
+      course_id: courseId,
+      taught_count: taughtRows.length,
+      total_kg_size: allNodes.length,
+      taught: taughtRows.map((n) => ({ slug: n.slug, title: n.title, domain: n.domain })),
+      missing: missing.map((n) => ({ slug: n.slug, title: n.title, domain: n.domain })),
+      missing_prereqs: Array.from(missingPrereqSet.values()),
     };
   }
 

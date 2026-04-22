@@ -77,6 +77,16 @@ export default function EditCoursePage() {
           >
             {t('view_analytics')} →
           </a>
+          <a
+            href={`insights`}
+            className="rounded-pill border px-4 py-2 text-xs font-semibold transition-colors"
+            style={{
+              borderColor: 'rgba(247, 189, 77, 0.5)',
+              color: 'var(--accent)',
+            }}
+          >
+            ✨ {t('view_insights')} →
+          </a>
           <PublishButton
             status={course.status}
             courseId={course.id}

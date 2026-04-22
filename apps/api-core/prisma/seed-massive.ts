@@ -41,6 +41,7 @@ import {
   type Verdict,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { MongoClient } from 'mongodb';
 
 const prisma = new PrismaClient();
 
@@ -1363,6 +1364,109 @@ async function seedSubmissions(
   process.stdout.write('\n');
 }
 
+// ---------------------------------------------------------------------------
+// AI-chat seeding for P9.1 Teacher Insight demo — the heatmap works off
+// Postgres mastery but the "AI Tutor Insights" panel reads ai_chats from
+// Mongo. We insert a few dozen realistic Vietnamese questions tied to
+// random demo students + demo lessons so the panel has actual signal at
+// demo time. Skipped silently when MONGO_URL is empty (dev-only box).
+// ---------------------------------------------------------------------------
+
+const DEMO_CHAT_TEMPLATES: Array<{ q: string; a: string }> = [
+  { q: 'cout là gì và dùng như thế nào?', a: '`cout` là luồng xuất chuẩn trong C++, dùng để in dữ liệu ra màn hình. Ví dụ: `cout << "Hello";`' },
+  { q: 'Sự khác nhau giữa == và = là gì?', a: '`=` là toán tử gán (đặt giá trị). `==` là toán tử so sánh bằng (trả về true/false).' },
+  { q: 'Vòng lặp for và while khác nhau chỗ nào?', a: '`for` phù hợp khi biết trước số lần lặp. `while` phù hợp khi điều kiện phức tạp / chưa biết số lần.' },
+  { q: 'Con trỏ là gì? Tôi vẫn chưa hiểu.', a: 'Con trỏ là biến lưu địa chỉ của một biến khác. Khi dereference (`*p`) bạn lấy được giá trị tại địa chỉ đó.' },
+  { q: 'Tại sao code của tôi báo segmentation fault?', a: 'Thường là do truy cập con trỏ null hoặc tràn mảng. Hãy kiểm tra mọi con trỏ trước khi dereference.' },
+  { q: 'Khi nào nên dùng recursion thay vì loop?', a: 'Dùng đệ quy khi bài toán có cấu trúc cây / chia-để-trị tự nhiên. Dùng loop khi chỉ duyệt tuần tự.' },
+  { q: 'Hàm khác phương thức (method) chỗ nào?', a: 'Phương thức là hàm gắn với một class / object. Hàm tự do không thuộc class nào.' },
+  { q: 'std::vector nhanh hơn mảng C không?', a: 'Về truy cập thì tương đương (O(1)). `vector` chậm hơn một chút khi cấp phát động nhưng an toàn hơn rất nhiều.' },
+  { q: 'Tại sao phải dùng const?', a: '`const` giúp compiler bắt lỗi ngay khi bạn vô tình ghi đè biến không nên thay đổi. Code dễ review hơn.' },
+  { q: 'Hàm inline có thực sự nhanh hơn không?', a: 'Không luôn. Compiler hiện đại tự inline các hàm nhỏ. `inline` chủ yếu giúp tránh lỗi "multiple definition" trong header.' },
+  { q: 'Làm sao debug lỗi WA trong bài tập?', a: 'In ra giá trị biến tại từng bước, so sánh với output mong đợi. Đặc biệt chú ý edge case: input rỗng, số âm, N=0.' },
+  { q: 'Độ phức tạp O(n log n) nghĩa là gì?', a: 'Thời gian chạy tăng theo n nhân log(n). Nhanh hơn O(n²), chậm hơn O(n). Điển hình: merge sort, quick sort.' },
+  { q: 'Binary search hoạt động ra sao?', a: 'Chia đôi mảng đã sắp xếp, so sánh với giữa, chọn nửa phù hợp, lặp lại. O(log n).' },
+  { q: 'Stack và Queue khác nhau chỗ nào?', a: 'Stack = LIFO (vào sau ra trước). Queue = FIFO (vào trước ra trước). Dùng cho các bài toán khác hẳn nhau.' },
+  { q: 'Tại sao không nên dùng using namespace std;?', a: 'Trong code lớn hoặc header file, nó gây đụng tên. Ở code bài tập nhỏ thì chấp nhận được.' },
+];
+
+async function seedDemoAiChats(
+  students: StudentRow[],
+  exercises: SeededExercise[],
+): Promise<void> {
+  const mongoUrl = process.env.MONGO_URL;
+  if (!mongoUrl) {
+    console.warn('[massive] MONGO_URL not set — skipping ai_chats seed');
+    return;
+  }
+  const client = new MongoClient(mongoUrl, { serverSelectionTimeoutMS: 3_000 });
+  try {
+    await client.connect();
+    const db = client.db(process.env.MONGO_DB ?? 'lms_telemetry');
+    const col = db.collection('ai_chats');
+    // Clear any stale demo chats first — keyed by userIds we're about to
+    // create chats for.
+    await col.deleteMany({ userId: { $in: students.map((s) => s.id) } });
+
+    // All candidate lessons (any type) belonging to demo courses.
+    const lessons = await prisma.lesson.findMany({
+      where: { module: { course: { slug: { startsWith: 'demo-' } } } },
+      select: { id: true },
+    });
+    if (lessons.length === 0) return;
+
+    const now = Date.now();
+    const WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // last 14 days
+    const TARGET_CHATS = 80;
+
+    const docs: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < TARGET_CHATS; i++) {
+      const student = pick(students);
+      const lesson = pick(lessons);
+      const template = pick(DEMO_CHAT_TEMPLATES);
+      const at = new Date(now - Math.floor(rand() * WINDOW_MS));
+      docs.push({
+        schemaVersion: 1,
+        userId: student.id,
+        lessonId: lesson.id,
+        provider: rand() < 0.3 ? 'deepseek' : 'llama',
+        locale: 'vi',
+        startedAt: at,
+        lastActivityAt: at,
+        messages: [
+          { role: 'user', content: template.q, at },
+          { role: 'assistant', content: template.a, at: new Date(at.getTime() + 2_000) },
+        ],
+      });
+    }
+    await col.insertMany(docs);
+    console.warn(`[massive] wrote ${docs.length} ai_chats docs to Mongo`);
+
+    // Also wipe + reseed learning_events for a minimal activity-log feel.
+    const events = db.collection('learning_events');
+    await events.deleteMany({ userId: { $in: students.map((s) => s.id) } });
+    const eventNames = ['lesson_open', 'tab_focus', 'tab_blur', 'submit_click'];
+    const evDocs: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < 200; i++) {
+      const student = pick(students);
+      const lesson = pick(lessons);
+      const at = new Date(now - Math.floor(rand() * WINDOW_MS));
+      evDocs.push({
+        schemaVersion: 1,
+        userId: student.id,
+        lessonId: lesson.id,
+        event: pick(eventNames),
+        metadata: {},
+        at,
+      });
+    }
+    await events.insertMany(evDocs);
+    console.warn(`[massive] wrote ${evDocs.length} learning_events docs to Mongo`);
+  } finally {
+    await client.close();
+  }
+}
+
 async function seedMastery(students: StudentRow[]): Promise<void> {
   console.warn('[massive] computing mastery from submissions');
   const rows: Array<{
@@ -1489,6 +1593,9 @@ async function main() {
   await seedSubmissions(students, exercises, studentToCourses);
 
   await seedMastery(students);
+
+  console.warn('[massive] seeding demo AI chats + events into Mongo (for P9.1 Teacher Insight)');
+  await seedDemoAiChats(students, exercises);
 
   const elapsed = ((Date.now() - started) / 1_000).toFixed(1);
   console.warn(`[massive] done in ${elapsed}s`);
