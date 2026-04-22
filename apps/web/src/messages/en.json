@@ -331,6 +331,7 @@
       "unpublish": "Unpublish",
       "publish_failed": "Action failed.",
       "view_analytics": "View analytics",
+      "view_insights": "View Insights",
       "curriculum": "Curriculum",
       "no_modules": "No modules yet.",
       "no_lessons": "No lessons yet.",
@@ -363,6 +364,36 @@
         "save": "Save",
         "saved": "Saved",
         "sign_in_required": "Please sign in."
+      }
+    },
+    "insights": {
+      "title": "Classroom insights",
+      "subtitle": "Qualitative signals for teachers: where students are weak, what the AI tutor is being asked, which concepts are missing.",
+      "back_to_edit": "← Back to course edit",
+      "load_failed": "Could not load insights.",
+      "heatmap": {
+        "title": "Classroom heatmap",
+        "subtitle": "Each cell is a student's BKT score on that concept. Red <40%, yellow 40–70%, green >70%.",
+        "empty": "Not enough data for a heatmap — need at least one student with submissions on a tagged concept.",
+        "students_col": "Student",
+        "no_data": "—",
+        "showing": "Showing {count} / {total} students (weakest first)."
+      },
+      "tutor": {
+        "title": "What is the AI Tutor being asked?",
+        "subtitle": "Top {limit} student questions to the AI in the last {days} days. Surfaces concepts causing confusion.",
+        "empty": "No AI-tutor questions in the last {days} days.",
+        "lesson_label": "Lesson",
+        "provider_llama": "Llama (free)",
+        "provider_deepseek": "DeepSeek (paid)"
+      },
+      "coverage": {
+        "title": "Concept coverage",
+        "subtitle": "This course teaches {taught} of {total} concepts in the Knowledge Graph.",
+        "taught_heading": "Taught ({n})",
+        "missing_heading": "Not in this course ({n})",
+        "missing_prereqs_heading": "Missing prerequisites — consider adding lessons ({n})",
+        "required_by": "required by:"
       }
     }
   },

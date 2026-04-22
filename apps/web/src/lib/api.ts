@@ -371,6 +371,39 @@ export const api = {
           acRate: number;
         }>;
       }>(`/teacher/courses/${id}/analytics`, { headers: authHeaders(token) }),
+
+    // P9.1 Teacher Insight endpoints — Heatmap, AI Tutor Insights, Coverage.
+    heatmap: (token: string, id: string) =>
+      request<{
+        course_id: string;
+        students: Array<{ id: string; display_name: string; email: string }>;
+        concepts: Array<{ id: string; slug: string; title: string; domain: string }>;
+        cells: Array<{ user_id: string; node_slug: string; score: number; attempts: number }>;
+      }>(`/teacher/courses/${id}/heatmap`, { headers: authHeaders(token) }),
+    tutorInsights: (token: string, id: string) =>
+      request<{
+        course_id: string;
+        window_days: number;
+        questions: Array<{
+          lesson_id: string | null;
+          lesson_title: string | null;
+          question: string;
+          provider: string;
+          at: string;
+        }>;
+      }>(`/teacher/courses/${id}/tutor-insights`, { headers: authHeaders(token) }),
+    coverageGap: (token: string, id: string) =>
+      request<{
+        course_id: string;
+        taught_count: number;
+        total_kg_size: number;
+        taught: Array<{ slug: string; title: string; domain: string }>;
+        missing: Array<{ slug: string; title: string; domain: string }>;
+        missing_prereqs: Array<{
+          node: { slug: string; title: string; domain: string };
+          required_by: string[];
+        }>;
+      }>(`/teacher/courses/${id}/coverage`, { headers: authHeaders(token) }),
     addModule: (token: string, courseId: string, dto: { title: string; sort_order: number }) =>
       request<{ id: string }>(`/teacher/courses/${courseId}/modules`, {
         method: 'POST',

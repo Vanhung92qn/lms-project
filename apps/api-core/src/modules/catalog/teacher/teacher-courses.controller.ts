@@ -95,6 +95,29 @@ export class TeacherCoursesController {
     return this.courses.analytics(user, id);
   }
 
+  // -------- P9.1 Teacher Insight endpoints --------------------------------
+
+  @Get(':id/heatmap')
+  @ApiOperation({ summary: 'Classroom heatmap: enrolled students × tagged concepts grid with BKT mastery scores' })
+  heatmap(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    this.requireTeacher(user);
+    return this.courses.heatmap(user, id);
+  }
+
+  @Get(':id/tutor-insights')
+  @ApiOperation({ summary: 'Most-recent student questions to the AI Tutor, joined with lesson titles' })
+  tutorInsights(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    this.requireTeacher(user);
+    return this.courses.tutorInsights(user, id);
+  }
+
+  @Get(':id/coverage')
+  @ApiOperation({ summary: 'Concept coverage: which KG nodes are taught by this course vs missing; missing prereqs flagged' })
+  coverageGap(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    this.requireTeacher(user);
+    return this.courses.coverageGap(user, id);
+  }
+
   @Post(':id/modules')
   @ApiOperation({ summary: 'Append a new module to a course' })
   addModule(

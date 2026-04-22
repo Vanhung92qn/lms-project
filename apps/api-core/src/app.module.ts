@@ -14,6 +14,7 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { TelemetryModule } from './modules/telemetry/telemetry.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -47,6 +48,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     WalletModule,
     AdminModule,
     OnboardingModule,
+    TelemetryModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
