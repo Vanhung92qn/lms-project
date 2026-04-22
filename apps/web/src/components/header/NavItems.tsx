@@ -28,10 +28,10 @@ export function NavItems({ variant = 'solid' }: { variant?: 'solid' | 'glass' })
     { key: 'roadmap',     href: '/courses' },
     { key: 'ai_tutor',    href: null },
     { key: 'learn',       href: '/dashboard', authOnly: true },
-    { key: 'challenge',   href: null },
-    { key: 'contest',     href: null },
-    { key: 'leaderboard', href: null },
-    { key: 'forum',       href: null },
+    { key: 'challenge',   href: '/challenge' },
+    { key: 'contest',     href: '/contest' },
+    { key: 'leaderboard', href: '/leaderboard' },
+    { key: 'forum',       href: '/forum' },
   ];
   const items = allItems.filter((item) => !item.authOnly || user);
 

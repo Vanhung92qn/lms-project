@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PublicCoursesController } from './public/public-courses.controller';
 import { PublicCoursesService } from './public/public-courses.service';
 import { LessonsController } from './public/lessons.controller';
+import { ChallengesController } from './public/challenges.controller';
+import { LeaderboardController } from './public/leaderboard.controller';
 import { TeacherCoursesController } from './teacher/teacher-courses.controller';
 import { TeacherCoursesService } from './teacher/teacher-courses.service';
 import { EnrollmentController } from './enrollment/enrollment.controller';
@@ -23,6 +25,8 @@ import { TelemetryModule } from '../telemetry/telemetry.module';
   controllers: [
     PublicCoursesController,
     LessonsController,
+    ChallengesController,
+    LeaderboardController,
     TeacherCoursesController,
     EnrollmentController,
   ],

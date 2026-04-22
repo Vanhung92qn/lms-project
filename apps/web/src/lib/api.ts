@@ -122,6 +122,40 @@ export const api = {
   getCourse: (slug: string, token?: string | null) =>
     request<CourseDetail>(`/courses/${slug}`, { headers: authHeaders(token) }),
 
+  // Public arena listings (nav pages, 2026-04-22).
+  challenges: () =>
+    request<
+      Array<{
+        exercise_id: string;
+        lesson_id: string;
+        lesson_title: string;
+        module_title: string;
+        course: {
+          slug: string;
+          title: string;
+          pricing_model: 'free' | 'paid';
+          price_cents: number | null;
+        };
+        language: 'c' | 'cpp' | 'js' | 'python';
+        total_attempts: number;
+        ac_count: number;
+        ac_rate: number | null;
+      }>
+    >('/challenges'),
+
+  leaderboard: (limit = 20) =>
+    request<{
+      top: Array<{
+        user_id: string;
+        display_name: string;
+        avatar_url: string | null;
+        ac_count: number;
+        total_submissions: number;
+        avg_mastery: number | null;
+        mastered_concepts: number;
+      }>;
+    }>(`/leaderboard?limit=${limit}`),
+
   // Enrollment
   enroll: (slug: string, token: string) =>
     request<EnrollResponse>('/enrollments', {
